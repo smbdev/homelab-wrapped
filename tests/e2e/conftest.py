@@ -97,3 +97,28 @@ def server_url(tmp_path_factory):
     yield f"http://127.0.0.1:{port}"
     server.should_exit = True
     thread.join(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def auth_cookie(server_url):
+    """Create the admin account once and hand out its session cookie."""
+    import http.cookiejar
+    import urllib.parse
+    import urllib.request
+
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    data = urllib.parse.urlencode(
+        {"username": "admin", "password": "hunter2secret", "confirm": "hunter2secret"}
+    ).encode()
+    opener.open(f"{server_url}/setup", data=data)
+    for cookie in jar:
+        if cookie.name == "wrapped_session":
+            return cookie.value
+    raise RuntimeError("setup did not return a session cookie")
+
+
+@pytest.fixture(autouse=True)
+def _signed_in(context, server_url, auth_cookie):
+    """Every page in the e2e suite starts with a valid session."""
+    context.add_cookies([{"name": "wrapped_session", "value": auth_cookie, "url": server_url}])

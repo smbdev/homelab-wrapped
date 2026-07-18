@@ -34,13 +34,22 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
     """
     stories_dir = Path(stories_dir)
     app = FastAPI(title="Homelab Wrapped", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.auth_mode = "off"  # no config file → read-only deployment, no auth
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
 
     if config_path is not None:
+        from wrapped.core.config import load_config
+        from wrapped.web.auth import add_auth
         from wrapped.web.settings import add_settings_routes
 
-        add_settings_routes(app, templates, Path(config_path))
+        config_path = Path(config_path)
+        try:
+            auth_mode = load_config(config_path).auth
+        except (FileNotFoundError, ValueError):
+            auth_mode = "local"
+        add_auth(app, templates, config_path.parent / "auth.json", auth_mode)
+        add_settings_routes(app, templates, config_path)
 
     def story_index() -> list[dict[str, str]]:
         entries = []

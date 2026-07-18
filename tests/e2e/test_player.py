@@ -119,8 +119,9 @@ def test_unknown_story_404s_with_listing(page, server_url):
     assert page.get_by_role("link", name="Your 2026").count() == 1
 
 
-def test_reduced_motion_shows_final_number_instantly(browser, server_url):
+def test_reduced_motion_shows_final_number_instantly(browser, server_url, auth_cookie):
     context = browser.new_context(reduced_motion="reduce")
+    context.add_cookies([{"name": "wrapped_session", "value": auth_cookie, "url": server_url}])
     page = context.new_page()
     page.goto(f"{server_url}/story/2026")
     page.keyboard.press("ArrowRight")

@@ -40,6 +40,36 @@
     </div>
   </section>
 
+  {% if request.app.state.auth_mode != "off" %}
+  <section aria-labelledby="account-h">
+    <h2 id="account-h">Account</h2>
+    {% if request.app.state.auth_mode == "proxy" %}
+    <p class="hint">Sign-in is managed by your reverse proxy (<code>X-Auth-User</code>).</p>
+    {% else %}
+    <form method="post" action="/account" class="add-form">
+      <label>Current password
+        <input name="current_password" type="password" required autocomplete="current-password">
+      </label>
+      <label>New username (optional)
+        <input name="new_username" pattern="[A-Za-z0-9_-]+" autocomplete="username"
+               placeholder="leave blank to keep {{ request.state.user }}">
+      </label>
+      <label>New password (optional)
+        <input name="new_password" type="password" minlength="8" autocomplete="new-password">
+      </label>
+      <label>Confirm new password
+        <input name="confirm" type="password" autocomplete="new-password">
+      </label>
+      <button class="btn" type="submit">Update account</button>
+      <p class="hint">Changing the password signs out every other session.</p>
+    </form>
+    {% endif %}
+    <form method="post" action="/logout" style="margin-top: var(--space-sm)">
+      <button class="btn ghost" type="submit">Sign out</button>
+    </form>
+  </section>
+  {% endif %}
+
   <section aria-labelledby="add-h">
     <h2 id="add-h">Add a service</h2>
     <form method="post" action="/settings/connectors" class="add-form">

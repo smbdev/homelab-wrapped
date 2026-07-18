@@ -10,6 +10,13 @@
 # Where the local event cache lives. Wipe it any time with `wrapped purge`.
 database: events.db
 
+# Web UI sign-in. "local" (default): first visit creates an admin account,
+# stored as a scrypt hash in auth.json next to this file. "proxy": skip the
+# sign-in page and trust the X-Auth-User header from your reverse proxy
+# (Authelia, Authentik, …) — only use behind a proxy that strips that header
+# from client requests.
+# auth: local
+
 # Delete cached events older than this many days on each sync.
 # retention_days: 730
 

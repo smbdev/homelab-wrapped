@@ -20,7 +20,12 @@ def config_path(tmp_path):
 
 @pytest.fixture
 def client(tmp_path, config_path):
-    return TestClient(create_app(tmp_path / "stories", config_path=config_path))
+    c = TestClient(create_app(tmp_path / "stories", config_path=config_path))
+    c.post(  # first-run: create the admin so the session cookie is set
+        "/setup",
+        data={"username": "admin", "password": "hunter2secret", "confirm": "hunter2secret"},
+    )
+    return c
 
 
 def test_settings_disabled_without_config_path(tmp_path):
