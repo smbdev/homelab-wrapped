@@ -36,6 +36,29 @@ def _run(config: AppConfig, period: Period, email_if: bool, now: datetime) -> di
     return story
 
 
+def refresh_current_year(config: AppConfig, now: datetime | None = None) -> dict | None:
+    """Sync and (re)build the current year's story; the ``serve`` startup job.
+
+    Runs in a background thread when the server starts with connectors
+    configured, so a Docker user's flow is just: edit config, restart, open
+    the browser. Never raises — a misconfigured connector logs a warning
+    instead of taking the web UI down with it.
+
+    Returns:
+        The built story, or ``None`` when nothing was configured or the
+        refresh failed.
+    """
+    if not config.connectors:
+        return None
+    now = now or datetime.now(tz=config.timezone)
+    year = now.astimezone(config.timezone).year
+    try:
+        return _run(config, Period("year", year=year), email_if=False, now=now)
+    except Exception:
+        log.exception("startup refresh failed — check your connector config")
+        return None
+
+
 def monthly_job(config: AppConfig, now: datetime | None = None) -> dict:
     """Build last month's recap (runs on the 1st of each month)."""
     now = now or datetime.now(tz=config.timezone)

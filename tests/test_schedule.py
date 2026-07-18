@@ -163,6 +163,38 @@ def test_job_respects_timezone(tmp_path):
     assert story["period"]["id"] == "day-05-31"
 
 
+def test_refresh_current_year_builds_story(tmp_path):
+    from wrapped.core.schedule import refresh_current_year
+
+    config = write_config(tmp_path)
+    story = refresh_current_year(config, now=datetime(2026, 7, 18, tzinfo=UTC))
+    assert story["period"]["id"] == "2026"
+    assert (tmp_path / "data" / "stories" / "2026.json").exists()
+    assert story["cards"]  # fixture events landed
+
+
+def test_refresh_skips_without_connectors(tmp_path):
+    from wrapped.core.config import load_config
+    from wrapped.core.schedule import refresh_current_year
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(f"database: {tmp_path}/e.db\n")
+    assert refresh_current_year(load_config(cfg)) is None
+
+
+def test_refresh_never_raises_on_broken_connector(tmp_path):
+    from wrapped.core.schedule import refresh_current_year
+
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        f"database: {tmp_path}/e.db\nconnectors:\n  bad:\n    type: generic_csv\n"
+        "    path: /nope/absent.csv\n"
+    )
+    from wrapped.core.config import load_config
+
+    assert refresh_current_year(load_config(cfg)) is None  # logged, not raised
+
+
 def test_background_scheduler_none_without_jobs(tmp_path):
     from wrapped.core.schedule import start_background_scheduler
 
