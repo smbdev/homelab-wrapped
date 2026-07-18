@@ -51,14 +51,12 @@ def main(argv: list[str] | None = None) -> int:
         metavar="MM-DD",
         help="on-this-day page for a calendar day (default: today)",
     )
-    sub.add_parser("serve", help="serve the story player web UI (arrives in M3)")
+    serve = sub.add_parser("serve", help="serve the story player web UI")
+    serve.add_argument("--host", default="127.0.0.1", help="bind address (default: local only)")
+    serve.add_argument("--port", type=int, default=8000)
     purge = sub.add_parser("purge", help="wipe the local event cache")
     purge.add_argument("--source", help="only purge this connector instance")
     args = parser.parse_args(argv)
-
-    if args.command == "serve":
-        print(f"'{args.command}' is not implemented yet — coming in a later milestone.")
-        return 2
 
     try:
         config = load_config(args.config)
@@ -92,6 +90,14 @@ def main(argv: list[str] | None = None) -> int:
             path = save_story(config.database.parent / "stories", story)
             n_cards = plural(len(story["cards"]), "card")
             print(f"Built '{story['period']['label']}' — {n_cards} → {path}")
+        elif args.command == "serve":
+            import uvicorn
+
+            from wrapped.web import create_app
+
+            store.close()  # serve reads stories from disk, not the event db
+            app = create_app(config.database.parent / "stories")
+            uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
         elif args.command == "purge":
             n = store.purge(source=args.source)
             print(f"Purged {n} events.")
