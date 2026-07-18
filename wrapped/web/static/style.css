@@ -136,6 +136,96 @@ button {
 .empty code { font-size: var(--text-body); color: var(--accent); }
 .hint { color: var(--muted); font-size: var(--text-sm); }
 
+/* ---------- Settings ---------- */
+
+.head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.settings-link, .crumbs a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: var(--text-body);
+  padding: var(--space-xs) 0;
+  display: inline-block;
+  min-height: 44px;
+}
+
+.settings-link:hover, .crumbs a:hover { color: var(--accent); }
+.crumbs { margin-bottom: var(--space-sm); }
+
+.index section { margin-top: var(--space-lg); }
+.index section h2 { font-size: var(--text-lead); margin: 0 0 var(--space-sm); }
+
+.notice.error { color: oklch(0.78 0.14 25); }
+
+.service-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.service-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--surface);
+  border-radius: 12px;
+  padding: var(--space-sm) var(--space-md);
+}
+
+.service-list .name { font-weight: 600; }
+.service-list .type { color: var(--muted); flex: 1; }
+.service-list form { margin: 0; }
+
+.btn.danger { color: oklch(0.78 0.14 25); }
+
+.add-form {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-weight: 600;
+  font-size: var(--text-body);
+}
+
+#plugin-fields { display: flex; flex-direction: column; gap: var(--space-md); }
+
+.add-form input, .add-form select {
+  font: inherit;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: var(--space-sm) var(--space-sm);
+  min-height: 44px;
+}
+
+.add-form input::placeholder { color: oklch(0.63 0.008 36); }
+.add-form input:focus-visible, .add-form select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.add-form .btn { align-self: flex-start; }
+.add-form .hint { margin: 0; }
+.empty .btn { display: inline-block; text-decoration: none; margin: var(--space-sm) 0; }
+
 /* ---------- Player shell ---------- */
 
 .player {

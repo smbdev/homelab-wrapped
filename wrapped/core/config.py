@@ -15,6 +15,7 @@ One file drives everything:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,56 @@ class AppConfig:
     connectors: list[ConnectorEntry]
     schedule: ScheduleConfig
     email: EmailConfig | None
+
+
+_MANAGED_HEADER = (
+    "# Homelab Wrapped configuration.\n"
+    "# Editable by hand or from the web UI's Settings page (which rewrites\n"
+    "# this file and does not preserve comments).\n"
+    "# All options: https://github.com/smbdev/homelab-wrapped/blob/main/config.example.yaml\n"
+)
+
+
+def _rewrite(path: str | Path, raw: dict[str, Any]) -> None:
+    Path(path).write_text(_MANAGED_HEADER + yaml.safe_dump(raw, sort_keys=False))
+
+
+def add_connector(path: str | Path, name: str, type_: str, cfg: dict[str, Any]) -> None:
+    """Add a connector instance to config.yaml (used by the Settings page).
+
+    Args:
+        path: The config file (must exist).
+        name: Instance name — becomes ``Event.source``.
+        type_: Plugin id, e.g. ``"jellyfin"``.
+        cfg: The plugin-specific keys, already validated by the caller.
+
+    Raises:
+        ValueError: On an invalid name or a duplicate instance.
+    """
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+        raise ValueError(f"instance name {name!r} must be letters, digits, - or _")
+    raw = yaml.safe_load(Path(path).read_text()) or {}
+    connectors = raw.setdefault("connectors", {}) or {}
+    if name in connectors:
+        raise ValueError(f"a connector called {name!r} already exists")
+    connectors[name] = {"type": type_, **cfg}
+    raw["connectors"] = connectors
+    _rewrite(path, raw)
+
+
+def remove_connector(path: str | Path, name: str) -> None:
+    """Remove a connector instance from config.yaml.
+
+    Raises:
+        ValueError: If no such instance exists.
+    """
+    raw = yaml.safe_load(Path(path).read_text()) or {}
+    connectors = raw.get("connectors") or {}
+    if name not in connectors:
+        raise ValueError(f"no connector called {name!r}")
+    del connectors[name]
+    raw["connectors"] = connectors
+    _rewrite(path, raw)
 
 
 def create_starter_config(path: str | Path) -> AppConfig:
@@ -149,9 +200,15 @@ def load_config(path: str | Path) -> AppConfig:
             starttls=bool(email_raw.get("starttls", True)),
         )
 
+    database = Path(raw.get("database", "data/events.db"))
+    if not database.is_absolute():
+        # Relative to the config file, not the process cwd — so the web UI's
+        # background jobs and the CLI agree on where the data lives.
+        database = Path(path).parent / database
+
     return AppConfig(
         timezone=tz,
-        database=Path(raw.get("database", "data/events.db")),
+        database=database,
         retention_days=retention,
         connectors=connectors,
         schedule=schedule,

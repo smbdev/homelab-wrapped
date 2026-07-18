@@ -21,11 +21,13 @@ from wrapped.core.story import list_stories, load_story
 _HERE = Path(__file__).parent
 
 
-def create_app(stories_dir: str | Path) -> FastAPI:
+def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -> FastAPI:
     """Build the FastAPI app serving recaps from a stories directory.
 
     Args:
         stories_dir: Directory of saved ``<period-id>.json`` story specs.
+        config_path: The config.yaml the Settings page manages; without it
+            the Settings page is disabled (read-only deployments, tests).
 
     Returns:
         The configured application.
@@ -34,6 +36,11 @@ def create_app(stories_dir: str | Path) -> FastAPI:
     app = FastAPI(title="Homelab Wrapped", docs_url=None, redoc_url=None, openapi_url=None)
     app.mount("/static", StaticFiles(directory=_HERE / "static"), name="static")
     templates = Jinja2Templates(directory=_HERE / "templates")
+
+    if config_path is not None:
+        from wrapped.web.settings import add_settings_routes
+
+        add_settings_routes(app, templates, Path(config_path))
 
     def story_index() -> list[dict[str, str]]:
         entries = []
@@ -45,9 +52,13 @@ def create_app(stories_dir: str | Path) -> FastAPI:
             entries.append({"id": period_id, "label": story["period"]["label"]})
         return entries
 
+    has_settings = config_path is not None
+
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
-        return templates.TemplateResponse(request, "index.html", {"stories": story_index()})
+        return templates.TemplateResponse(
+            request, "index.html", {"stories": story_index(), "has_settings": has_settings}
+        )
 
     @app.get("/story/{period_id}", response_class=HTMLResponse)
     def story_page(request: Request, period_id: str) -> HTMLResponse:
@@ -57,7 +68,7 @@ def create_app(stories_dir: str | Path) -> FastAPI:
             return templates.TemplateResponse(
                 request,
                 "index.html",
-                {"stories": story_index(), "missing": period_id},
+                {"stories": story_index(), "missing": period_id, "has_settings": has_settings},
                 status_code=404,
             )
         return templates.TemplateResponse(request, "story.html", {"story": story})
