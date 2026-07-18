@@ -94,6 +94,9 @@ Commands: `wrapped sync` (collect events) · `wrapped build [--year N | --month 
 |---|---|---|
 | **Jellyfin** | Playback Reporting plugin's SQLite, opened read-only | plays, watch time, top shows |
 | **Immich** | metadata API with an API key | photos, busiest day |
+| **Pi-hole** | FTL query database, opened read-only | ads blocked, most-blocked domains |
+| **Paperless-ngx** | documents API with a token | documents archived, top senders |
+| **This server (Docker)** | the read-only Docker socket, no credentials | TB moved per container, container count |
 | **Generic CSV/JSON** | any local file you export | anything you like |
 
 Your service missing? Export it to CSV and use the generic connector today — or add a real one: a connector is one Python file with three methods, and the [connector guide](docs/connector-guide.md) walks you through it with a worked example. This is the best way to contribute.
