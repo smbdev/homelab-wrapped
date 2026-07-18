@@ -98,15 +98,22 @@ def main(argv: list[str] | None = None) -> int:
             n_cards = plural(len(story["cards"]), "card")
             print(f"Built '{story['period']['label']}' — {n_cards} → {path}")
         elif args.command == "serve":
+            import threading
+
             import uvicorn
 
-            from wrapped.core.schedule import start_background_scheduler
+            from wrapped.core.schedule import refresh_current_year, start_background_scheduler
             from wrapped.web import create_app
 
             store.close()  # serve reads stories from disk, not the event db
             scheduler = start_background_scheduler(config)  # None unless jobs enabled
             if scheduler:
                 print("Scheduler active:", ", ".join(j.name for j in scheduler.get_jobs()))
+            if config.connectors:
+                # Sync + build this year's recap in the background on startup,
+                # so "edit config, restart, open browser" is the whole flow.
+                threading.Thread(target=refresh_current_year, args=(config,), daemon=True).start()
+                print("Syncing and building this year's recap in the background…")
             app = create_app(config.database.parent / "stories")
             uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
         elif args.command == "schedule":
