@@ -163,6 +163,24 @@ def test_job_respects_timezone(tmp_path):
     assert story["period"]["id"] == "day-05-31"
 
 
+def test_background_scheduler_none_without_jobs(tmp_path):
+    from wrapped.core.schedule import start_background_scheduler
+
+    assert start_background_scheduler(write_config(tmp_path)) is None
+
+
+def test_background_scheduler_runs_enabled_jobs(tmp_path):
+    from wrapped.core.schedule import start_background_scheduler
+
+    config = write_config(tmp_path, "schedule:\n  monthly_recap: true\n  on_this_day: true\n")
+    scheduler = start_background_scheduler(config)
+    try:
+        assert sorted(j.name for j in scheduler.get_jobs()) == ["monthly-recap", "on-this-day"]
+        assert scheduler.running
+    finally:
+        scheduler.shutdown(wait=False)
+
+
 def test_run_scheduler_refuses_empty_config(tmp_path):
     config = write_config(tmp_path)
     with pytest.raises(ValueError, match="no scheduled jobs"):
