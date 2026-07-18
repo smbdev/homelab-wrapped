@@ -66,6 +66,26 @@ class AppConfig:
     email: EmailConfig | None
 
 
+def create_starter_config(path: str | Path) -> AppConfig:
+    """Write the commented example config to ``path`` and load it.
+
+    Called on first ``wrapped serve`` when no config exists yet, so a fresh
+    Docker volume boots straight into a working (if empty) app instead of a
+    crash loop — the user edits the generated file to add their services.
+    """
+    from importlib import resources
+
+    packaged = resources.files("wrapped").joinpath("config.example.yaml")
+    if packaged.is_file():
+        text = packaged.read_text()
+    else:  # editable install / repo checkout: the example lives at the repo root
+        text = (Path(__file__).parent.parent.parent / "config.example.yaml").read_text()
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
+    return load_config(path)
+
+
 def load_config(path: str | Path) -> AppConfig:
     """Load and validate config.yaml.
 

@@ -1,43 +1,46 @@
 # Homelab Wrapped configuration.
-# Copy to config.yaml and edit. Everything is optional except `connectors`.
+# In Docker this file is created for you in /data on first start — edit it,
+# then run:  wrapped sync && wrapped build   (via `docker exec homelab-wrapped …`)
+#
+# Everything below is optional; uncomment what you use.
 
 # Your timezone — day boundaries, streaks and heatmaps are computed in it.
-timezone: Europe/London
+# timezone: Europe/London
 
 # Where the local event cache lives. Wipe it any time with `wrapped purge`.
-database: data/events.db
+database: events.db
 
-# Optional: delete cached events older than this many days on each sync.
+# Delete cached events older than this many days on each sync.
 # retention_days: 730
 
-connectors:
+connectors: {}
   # Jellyfin, via the Playback Reporting plugin's database (read-only).
-  jellyfin:
-    type: jellyfin
-    db_path: /jellyfin-config/data/playback_reporting.db
-    # timezone: Europe/London      # zone your Jellyfin server logs in
-    # user_id: abc123              # only this user's plays
-
+  # jellyfin:
+  #   type: jellyfin
+  #   db_path: /jellyfin-data/data/playback_reporting.db
+  #   timezone: Europe/London      # zone your Jellyfin server logs in
+  #   user_id: abc123              # only this user's plays
+  #
   # Immich, via its API (create a key in Account Settings → API Keys).
-  immich:
-    type: immich
-    url: http://immich.local:2283
-    api_key: YOUR_IMMICH_API_KEY
-
+  # immich:
+  #   type: immich
+  #   url: http://immich.local:2283
+  #   api_key: YOUR_IMMICH_API_KEY
+  #
   # Anything else: export to CSV/JSON and use the generic connector.
   # Columns/keys: ts (ISO-8601), kind, entity, entity_group, value.
   # mydata:
   #   type: generic_csv
   #   path: /data/events.csv
 
-# Scheduled jobs — used by `wrapped schedule` (the always-on mode).
-schedule:
-  monthly_recap: true   # 1st of each month: build last month's recap
-  on_this_day: true     # daily: build the "on this day" page
-  hour: 6               # local hour the jobs run at
+# Scheduled jobs — with these on, the running container rebuilds recaps
+# automatically (monthly on the 1st; on-this-day daily).
+# schedule:
+#   monthly_recap: true
+#   on_this_day: true
+#   hour: 6               # local hour the jobs run at
 
-# Optional email digests, sent through YOUR OWN SMTP server.
-# Omit this block entirely to disable email.
+# Email digests, sent through YOUR OWN SMTP server. Omit to disable.
 # email:
 #   smtp_host: mail.example.com
 #   smtp_port: 587

@@ -20,10 +20,10 @@
   </nav>
   {% else %}
   <div class="empty">
-    <p>No recaps yet. Two commands and you're in:</p>
+    <p>No recaps yet. Point <code>config.yaml</code> at your services, then two commands and you're in:</p>
     <pre><code>wrapped sync
 wrapped build</code></pre>
-    <p class="hint">Then refresh this page.</p>
+    <p class="hint">Running in Docker? Prefix with <code>docker exec homelab-wrapped</code>. Then refresh this page.</p>
   </div>
   {% endif %}
 </main>

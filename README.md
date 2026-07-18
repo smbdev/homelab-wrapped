@@ -12,12 +12,11 @@ Your homelab already knows what you watched, photographed, and collected this ye
 ## Quick start
 
 ```bash
-mkdir wrapped && cd wrapped && mkdir data
+mkdir wrapped && cd wrapped
 curl -LO https://raw.githubusercontent.com/smbdev/homelab-wrapped/main/docker-compose.yml
-curl -L -o data/config.yaml https://raw.githubusercontent.com/smbdev/homelab-wrapped/main/config.example.yaml
-# edit data/config.yaml — point it at your services
-docker compose up -d
+docker compose up -d                        # first start creates ./data/config.yaml
 
+# edit ./data/config.yaml — point it at your services — then:
 docker compose exec wrapped wrapped sync    # pull events from your services
 docker compose exec wrapped wrapped build   # build this year's story
 ```
@@ -47,7 +46,7 @@ services:
     restart: unless-stopped
 ```
 
-Before deploying, put a `config.yaml` in the host directory you mount (start from [config.example.yaml](config.example.yaml)), and add read-only mounts for whatever your connectors read — e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`. Then run your first sync from the manager's console (or SSH):
+First start creates a commented `config.yaml` in the mounted directory. Edit it to point at your services (adding read-only mounts to the stack for whatever your connectors read, e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`), then run your first sync from the manager's console (or SSH):
 
 ```bash
 docker exec homelab-wrapped wrapped sync
