@@ -1,109 +1,155 @@
 {% extends "base.html" %}
 {% block title %}Settings — Homelab Wrapped{% endblock %}
 {% block body %}
-<main class="index">
-  <header class="index-head">
-    <nav class="crumbs"><a href="/">← All recaps</a></nav>
-    <h1>Settings</h1>
-    <p class="tagline">Connect the services your recaps are built from.</p>
+<canvas id="hw-bg" aria-hidden="true"></canvas>
+<main class="hw-shell">
+  <header class="hw-top hw-rise">
+    <a class="hw-mark" href="/">Homelab Wrapped</a>
+    <div class="hw-top-actions">
+      {% if request.state.user %}<span class="hw-pill hw-pill--user">signed in as {{ request.state.user }}</span>{% endif %}
+      <a class="hw-pill" href="/">← All recaps</a>
+    </div>
   </header>
 
-  {% if msg %}<p class="notice" role="status">{{ msg }}</p>{% endif %}
-  {% if err %}<p class="notice error" role="alert">{{ err }}</p>{% endif %}
-
-  <section aria-labelledby="connected-h">
-    <h2 id="connected-h">Connected services</h2>
-    {% if configured %}
-    <ul class="service-list">
-      {% for c in configured %}
-      <li>
-        <span class="name">{{ c.name }}</span>
-        <span class="type">{{ plugins[c.type].name if c.type in plugins else c.type }}</span>
-        <form method="post" action="/settings/connectors/{{ c.name }}/delete">
-          <button class="btn ghost danger" aria-label="Remove {{ c.name }}">Remove</button>
-        </form>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="hint">Nothing connected yet — add your first service below.</p>
-    {% endif %}
+  <section class="hw-hero hw-rise hw-rise-1" style="margin-bottom: 1.6rem">
+    <h1 style="font-size: clamp(2.2rem, 5vw, 3.2rem)">Settings</h1>
+    <p class="hw-lede" style="margin-bottom: 0">Connect the services your recaps are built from. Everything stays on this box.</p>
   </section>
 
-  <section aria-labelledby="scan-h">
-    <h2 id="scan-h">Find services automatically</h2>
-    <div class="scan-box">
-      <button class="btn" id="scan-btn" type="button">Scan this server</button>
-      <p class="hint">Looks at the Docker containers running on this machine and prefills the form for services it recognises. Local only — nothing leaves your server.</p>
-      <p class="hint scan-status" id="scan-status" role="status" hidden></p>
-      <ul class="service-list" id="scan-results"></ul>
-    </div>
-  </section>
+  {% if msg %}<p class="hw-notice" role="status">{{ msg }}</p>{% endif %}
+  {% if err %}<p class="hw-notice hw-notice--err" role="alert">{{ err }}</p>{% endif %}
 
   {% if request.app.state.auth_mode != "off" %}
-  <section aria-labelledby="account-h">
-    <h2 id="account-h">Account</h2>
-    {% if request.app.state.auth_mode == "proxy" %}
-    <p class="hint">Sign-in is managed by your reverse proxy (<code>X-Auth-User</code>).</p>
-    {% else %}
-    <form method="post" action="/account" class="add-form">
-      <label>Current password
-        <input name="current_password" type="password" required autocomplete="current-password">
-      </label>
-      <label>New username (optional)
-        <input name="new_username" pattern="[A-Za-z0-9_-]+" autocomplete="username"
-               placeholder="leave blank to keep {{ request.state.user }}">
-      </label>
-      <label>New password (optional)
-        <input name="new_password" type="password" minlength="8" autocomplete="new-password">
-      </label>
-      <label>Confirm new password
-        <input name="confirm" type="password" autocomplete="new-password">
-      </label>
-      <button class="btn" type="submit">Update account</button>
-      <p class="hint">Changing the password signs out every other session.</p>
-    </form>
-    {% endif %}
-    <form method="post" action="/logout" style="margin-top: var(--space-sm)">
-      <button class="btn ghost" type="submit">Sign out</button>
-    </form>
-  </section>
+  <div class="hw-tabs hw-rise hw-rise-2" role="tablist">
+    <button class="hw-tab on" id="tab-services" role="tab" aria-selected="true" aria-controls="pane-services">Services</button>
+    <button class="hw-tab" id="tab-account" role="tab" aria-selected="false" aria-controls="pane-account">Account</button>
+  </div>
   {% endif %}
 
-  <section aria-labelledby="add-h">
-    <h2 id="add-h">Add a service</h2>
-    <form method="post" action="/settings/connectors" class="add-form">
-      <label>Service
-        <select name="type" id="type-select">
-          {% for pid, p in plugins.items() %}
-          <option value="{{ pid }}">{{ p.name }}</option>
+  <div id="pane-services" role="tabpanel" aria-labelledby="tab-services" class="hw-grid hw-rise hw-rise-3">
+    <div class="hw-panel">
+      <h2>Add a service</h2>
+      <form method="post" action="/settings/connectors" id="add-form">
+        <span class="lbl" style="display:block; font: 600 13px/1.4 var(--hw-font-display); margin-bottom: .45rem">Service</span>
+        <div class="hw-choices" id="type-choices" role="radiogroup" aria-label="Service type"></div>
+        <input type="hidden" name="type" id="type-input">
+        <label class="hw-field"><span class="lbl">Name this connection</span>
+          <input name="name" required pattern="[A-Za-z0-9_-]+" placeholder="e.g. living-room-jellyfin"
+                 title="Letters, digits, - or _">
+        </label>
+        <div id="plugin-fields"></div>
+        <button class="hw-btn hw-btn--wide" type="submit">Add &amp; test connection</button>
+        <p class="hw-hint">Credentials stay in <b>config.yaml</b> on your server — nothing leaves it.</p>
+      </form>
+    </div>
+
+    <div>
+      <section class="hw-panel" aria-labelledby="connected-h">
+        <h2 id="connected-h">Connected services</h2>
+        {% if configured %}
+        <ul class="hw-rows" style="list-style:none; margin:0; padding:0">
+          {% for c in configured %}
+          <li class="hw-row">
+            <span class="hw-status" aria-hidden="true"></span>
+            <span class="who">
+              <span class="n">{{ c.name }}</span><br>
+              <span class="s">{{ plugins[c.type].name if c.type in plugins else c.type }}</span>
+            </span>
+            <form method="post" action="/settings/connectors/{{ c.name }}/delete" style="margin:0">
+              <button class="hw-btn hw-btn--danger" aria-label="Remove {{ c.name }}">Remove</button>
+            </form>
+          </li>
           {% endfor %}
-        </select>
-      </label>
-      <label>Name this connection
-        <input name="name" required pattern="[A-Za-z0-9_-]+" placeholder="e.g. living-room-jellyfin"
-               title="Letters, digits, - or _">
-      </label>
-      <div id="plugin-fields"></div>
-      <button class="btn" type="submit">Add &amp; test connection</button>
-      <p class="hint">Credentials stay in <code>config.yaml</code> on your server — nothing leaves it.</p>
-    </form>
-  </section>
+        </ul>
+        {% else %}
+        <p class="hw-hint" style="margin:0">Nothing connected yet — add your first service, or scan below.</p>
+        {% endif %}
+      </section>
+
+      <section class="hw-panel hw-panel--scan" aria-labelledby="scan-h">
+        <h2 id="scan-h">Find services automatically</h2>
+        <button class="hw-btn" id="scan-btn" type="button">Scan this server</button>
+        <p class="hw-hint">Reads the Docker containers on this machine and prefills the form for anything it recognises. Local only — nothing leaves your server.</p>
+        <p class="hw-term" id="scan-status" role="status" hidden></p>
+        <ul class="hw-rows" id="scan-results" style="list-style:none; margin:.8rem 0 0; padding:0"></ul>
+      </section>
+    </div>
+  </div>
+
+  {% if request.app.state.auth_mode != "off" %}
+  <div id="pane-account" role="tabpanel" aria-labelledby="tab-account" class="hw-grid" hidden>
+    <div class="hw-panel">
+      <h2>Profile</h2>
+      {% if request.app.state.auth_mode == "proxy" %}
+      <p class="hw-hint" style="margin:0">Sign-in is managed by your reverse proxy (<b>X-Auth-User</b>).</p>
+      {% else %}
+      <form method="post" action="/account">
+        <label class="hw-field"><span class="lbl">Current password</span>
+          <input name="current_password" type="password" required autocomplete="current-password">
+        </label>
+        <label class="hw-field"><span class="lbl">New username <small>(optional)</small></span>
+          <input name="new_username" pattern="[A-Za-z0-9_-]+" autocomplete="username"
+                 placeholder="leave blank to keep {{ request.state.user }}">
+        </label>
+        <label class="hw-field"><span class="lbl">New password <small>(optional)</small></span>
+          <input name="new_password" type="password" minlength="8" autocomplete="new-password">
+        </label>
+        <label class="hw-field"><span class="lbl">Confirm new password</span>
+          <input name="confirm" type="password" autocomplete="new-password">
+        </label>
+        <button class="hw-btn" type="submit">Update account</button>
+        <p class="hw-hint">Changing the password signs out every other session.</p>
+      </form>
+      {% endif %}
+    </div>
+    <div class="hw-panel">
+      <h2>Session</h2>
+      <form method="post" action="/logout" style="margin:0">
+        <button class="hw-btn hw-btn--ghost" type="submit">Sign out</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 </main>
 
 <script type="application/json" id="plugin-schemas">{{ plugins | tojson }}</script>
 <script>
-  // Render the selected plugin's config fields from its declared schema.
+  // Tabs: client-side toggle between the two panes.
+  const tabS = document.getElementById("tab-services");
+  const tabA = document.getElementById("tab-account");
+  if (tabS && tabA) {
+    const paneS = document.getElementById("pane-services");
+    const paneA = document.getElementById("pane-account");
+    function show(tab) {
+      const services = tab === tabS;
+      paneS.hidden = !services;
+      paneA.hidden = services;
+      for (const [t, on] of [[tabS, services], [tabA, !services]]) {
+        t.classList.toggle("on", on);
+        t.setAttribute("aria-selected", String(on));
+      }
+    }
+    tabS.addEventListener("click", () => show(tabS));
+    tabA.addEventListener("click", () => show(tabA));
+  }
+
+  // Service type chips drive the hidden type input + per-plugin fields,
+  // rendered from each plugin's declared schema.
   const schemas = JSON.parse(document.getElementById("plugin-schemas").textContent);
-  const select = document.getElementById("type-select");
+  const typeInput = document.getElementById("type-input");
+  const choices = document.getElementById("type-choices");
   const holder = document.getElementById("plugin-fields");
+
   function renderFields() {
     holder.replaceChildren();
-    for (const f of schemas[select.value].fields) {
+    for (const f of schemas[typeInput.value].fields) {
       const label = document.createElement("label");
+      label.className = "hw-field";
+      const lbl = document.createElement("span");
+      lbl.className = "lbl";
       const words = f.key.replaceAll("_", " ");
-      const pretty = words[0].toUpperCase() + words.slice(1);
-      label.append(pretty + (f.required ? "" : " (optional)"));
+      lbl.textContent = words[0].toUpperCase() + words.slice(1) + (f.required ? "" : " (optional)");
+      label.append(lbl);
       const input = document.createElement("input");
       input.name = f.key;
       input.required = f.required;
@@ -113,8 +159,23 @@
       holder.append(label);
     }
   }
-  select.addEventListener("change", renderFields);
-  renderFields();
+
+  function selectType(pid) {
+    typeInput.value = pid;
+    for (const b of choices.children) b.classList.toggle("on", b.dataset.pid === pid);
+    renderFields();
+  }
+
+  for (const [pid, p] of Object.entries(schemas)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "hw-choice";
+    b.dataset.pid = pid;
+    b.textContent = p.name;
+    b.addEventListener("click", () => selectType(pid));
+    choices.append(b);
+  }
+  selectType(Object.keys(schemas)[0]);
 
   // Scan: ask the server for recognised Docker containers, prefill the form.
   const scanBtn = document.getElementById("scan-btn");
@@ -123,33 +184,33 @@
   function status(text) { scanStatus.textContent = text; scanStatus.hidden = !text; }
 
   scanBtn.addEventListener("click", async () => {
-    status("Scanning…");
+    status("inspecting docker.sock …");
     scanResults.replaceChildren();
     let data;
     try {
       const resp = await fetch("/settings/scan");
       data = await resp.json();
       if (!resp.ok) { status(data.error); return; }
-    } catch { status("Scan failed — is the server still running?"); return; }
-    if (!data.found.length) { status("No recognisable services found running in Docker."); return; }
+    } catch { status("scan failed — is the server still running?"); return; }
+    if (!data.found.length) { status("no recognisable services found running in Docker."); return; }
     status("");
     for (const s of data.found) {
       const li = document.createElement("li");
-      const info = document.createElement("div");
-      info.className = "scan-info";
+      li.className = "hw-row";
+      const info = document.createElement("span");
+      info.className = "who";
       const title = document.createElement("span");
-      title.className = "name";
+      title.className = "n";
       title.textContent = `${schemas[s.type].name} — container “${s.name}”`;
       const note = document.createElement("span");
-      note.className = "type";
+      note.className = "s";
       note.textContent = s.note;
-      info.append(title, note);
+      info.append(title, document.createElement("br"), note);
       const use = document.createElement("button");
-      use.className = "btn ghost";
+      use.className = "hw-btn";
       use.textContent = "Use this";
       use.addEventListener("click", () => {
-        select.value = s.type;
-        renderFields();
+        selectType(s.type);
         document.querySelector("input[name=name]").value = s.name;
         for (const [key, value] of Object.entries(s.fields)) {
           const input = holder.querySelector(`input[name=${key}]`);
@@ -160,7 +221,7 @@
           if (url) url.value = `http://${location.hostname}:${s.port}`;
         }
         const firstEmpty = [...holder.querySelectorAll("input")].find((i) => !i.value);
-        document.getElementById("add-h").scrollIntoView({ behavior: "smooth" });
+        document.getElementById("add-form").scrollIntoView({ behavior: "smooth" });
         (firstEmpty || holder.querySelector("input"))?.focus({ preventScroll: true });
       });
       li.append(info, use);
@@ -168,4 +229,5 @@
     }
   });
 </script>
+<script src="/static/hw-bg.js" type="module"></script>
 {% endblock %}

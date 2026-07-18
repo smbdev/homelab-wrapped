@@ -1,22 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Sign in — Homelab Wrapped{% endblock %}
 {% block body %}
-<main class="index">
-  <header class="index-head">
+<canvas id="hw-bg" aria-hidden="true"></canvas>
+<main class="hw-auth">
+  <div class="hw-auth-card">
+    <p class="hw-term" data-lines='["booting recap.engine ......... ok"]'></p>
+    <span class="hw-mark">Homelab Wrapped</span>
     <h1>Sign in</h1>
-    <p class="tagline">Your homelab's year, on your own hardware.</p>
-  </header>
+    <p class="sub">Your homelab's year, on your own hardware.</p>
 
-  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+    {% if error %}<p class="hw-notice hw-notice--err" role="alert">{{ error }}</p>{% endif %}
 
-  <form method="post" action="/login" class="add-form">
-    <label>Username
-      <input name="username" required autocomplete="username" value="{{ username or '' }}">
-    </label>
-    <label>Password
-      <input name="password" type="password" required autocomplete="current-password">
-    </label>
-    <button class="btn" type="submit">Sign in</button>
-  </form>
+    <form method="post" action="/login">
+      <label class="hw-field"><span class="lbl">Username</span>
+        <input name="username" required autocomplete="username" value="{{ username or '' }}">
+      </label>
+      <label class="hw-field"><span class="lbl">Password</span>
+        <input name="password" type="password" required autocomplete="current-password">
+      </label>
+      <button class="hw-btn hw-btn--wide" type="submit">Sign in</button>
+    </form>
+  </div>
 </main>
+<script src="/static/hw-bg.js" type="module"></script>
 {% endblock %}
