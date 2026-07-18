@@ -1,0 +1,57 @@
+# Claude / AI assistant files — never commit
+CLAUDE.md
+claude.md
+.claude/
+**/.claude/
+*.claude.json
+.claude-*
+
+# Planning / spec / scratch documents — never commit
+*-architecture.md
+*architecture*.md
+*-spec.md
+*-plan.md
+PLAN.md
+NOTES.md
+TODO.md
+PRODUCT.md
+DESIGN.md
+scratch/
+notes/
+
+# Data / user files — never commit
+*.db
+*.sqlite
+*.sqlite3
+config.yaml
+data/
+*.csv
+*.pdf
+*.xlsx
+!tests/fixtures/*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
