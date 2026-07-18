@@ -17,7 +17,9 @@ One command:
 docker run -d --name homelab-wrapped -p 8365:8365 -v wrapped-data:/data --restart unless-stopped ghcr.io/smbdev/homelab-wrapped
 ```
 
-Open <http://localhost:8365> → **Settings** → **Scan this server** finds services running in Docker and prefills the form (or add them manually — each add tests the connection). Your first recap syncs and builds itself — no config files, no restarts.
+Open <http://localhost:8365> — the first visit asks you to create an admin account (stored as a scrypt hash in `auth.json` on your volume; nothing leaves the box). Then **Settings** → **Scan this server** finds services running in Docker and adds them in one click (or add them manually — every add tests the connection first). Your first recap syncs and builds itself — no config files, no restarts.
+
+Behind Authelia/Authentik or another reverse proxy that sets `X-Auth-User`? Put `auth: proxy` in `config.yaml` and the sign-in page steps aside.
 
 Scanning reads the Docker socket, so it needs the opt-in mount `-v /var/run/docker.sock:/var/run/docker.sock:ro` added to the command above. It's read-only and local-only — the no-phoning-home promise is unchanged.
 
