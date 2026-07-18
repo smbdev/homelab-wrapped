@@ -35,6 +35,18 @@ function countUp(node, target) {
   requestAnimationFrame(tick);
 }
 
+/* Category chip from the fact id: "media.total_hours" → "media". */
+function eyebrow(card) {
+  const cat = (card.fact || "").split(".")[0];
+  return cat ? el("p", "eyebrow", cat.replaceAll("_", " ")) : null;
+}
+
+function withEyebrow(root, card) {
+  const chip = eyebrow(card);
+  if (chip) root.prepend(chip);
+  return root;
+}
+
 /* "412 hours watched" + value 412 → label "hours watched"; else keep whole headline. */
 function splitHeadline(card) {
   const prefix = fmt(card.value) + " ";
@@ -54,7 +66,7 @@ function bigNumber(card) {
   root.append(el("h2", null, label ?? card.headline));
   if (card.sub) root.append(el("p", "sub", card.sub));
   countUp(display, card.value);
-  return root;
+  return withEyebrow(root, card);
 }
 
 function streak(card) {
@@ -64,7 +76,7 @@ function streak(card) {
   root.append(el("h2", null, card.headline));
   if (card.sub) root.append(el("p", "sub", card.sub));
   countUp(display, card.value);
-  return root;
+  return withEyebrow(root, card);
 }
 
 function topList(card) {
@@ -78,7 +90,7 @@ function topList(card) {
     list.append(li);
   });
   root.append(list);
-  return root;
+  return withEyebrow(root, card);
 }
 
 function comparison(card) {
@@ -98,17 +110,26 @@ function comparison(card) {
   }
   root.append(wrap);
   if (card.sub) root.append(el("p", "sub", card.sub));
-  return root;
+  return withEyebrow(root, card);
 }
 
 function heatmap(card) {
   const root = el("article", "card heatmap-card");
   root.append(el("h2", null, card.headline));
   const scroll = el("div", "heatmap-scroll");
+  const wrap = el("div", "heatmap-wrap");
+  const months = el("div", "heatmap-months");
+  const days = el("div", "heatmap-days");
+  for (const [row, name] of [[1, "Mon"], [3, "Wed"], [5, "Fri"]]) {
+    const s = el("span", null, name);
+    s.style.gridRow = row;
+    days.append(s);
+  }
   const grid = el("div", "heatmap");
   grid.setAttribute("role", "img");
   grid.setAttribute("aria-label", `${card.headline}: activity per day`);
 
+  const COL = 16; // 13px cell + 3px gap
   const dates = Object.keys(card.data || {});
   if (dates.length) {
     const values = Object.values(card.data);
@@ -120,22 +141,40 @@ function heatmap(card) {
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
     const localISO = (d) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    let i = 0;
+    let lastLabelCol = -3;
     for (let d = new Date(start); d <= last; d.setDate(d.getDate() + 1)) {
+      const col = Math.floor(i / 7);
+      if (d.getDate() === 1 && col > lastLabelCol + 2) {
+        const m = el("span", "m", d.toLocaleString("en", { month: "short" }));
+        m.style.left = `${col * COL}px`;
+        months.append(m);
+        lastLabelCol = col;
+      }
       const iso = localISO(d); // not toISOString(): that shifts to UTC and misses local dates
       const v = card.data[iso] || 0;
       const cell = el("div", "cell");
+      cell.style.setProperty("--c", col);
       if (v > 0) {
         const level = Math.max(1, Math.ceil((4 * v) / max));
         cell.classList.add(`l${level}`);
         cell.title = `${iso}: ${fmt(v)}`;
       }
       grid.append(cell);
+      i++;
     }
   }
-  scroll.append(grid);
+  const body = el("div", "heatmap-body");
+  body.append(days, grid);
+  const legend = el("div", "heatmap-legend");
+  legend.append(el("span", null, "Less"));
+  for (const lvl of ["", " l1", " l2", " l3", " l4"]) legend.append(el("i", "cell" + lvl));
+  legend.append(el("span", null, "More"));
+  wrap.append(months, body, legend);
+  scroll.append(wrap);
   root.append(scroll);
-  if (card.sub) root.append(el("p", "sub", card.sub));
-  return root;
+  root.append(el("p", "sub", card.sub || "One square per day — the brighter, the busier."));
+  return withEyebrow(root, card);
 }
 
 function superlative(card) {
@@ -165,6 +204,18 @@ function quiet() {
 
 function outro() {
   const root = el("article", "card outro");
+  if (!REDUCED) {
+    const conf = el("div", "confetti");
+    conf.setAttribute("aria-hidden", "true");
+    for (let i = 0; i < 18; i++) {
+      const p = el("i");
+      p.style.left = `${(i * 61 + 13) % 100}%`;
+      p.style.animationDelay = `${(i * 137) % 900}ms`;
+      p.style.animationDuration = `${2200 + ((i * 271) % 1400)}ms`;
+      conf.append(p);
+    }
+    root.append(conf);
+  }
   root.append(el("h2", "big", "That's a wrap"));
   root.append(el("p", "sub", story.period.label));
 

@@ -20,7 +20,8 @@ def test_index_lists_and_navigates(page, server_url):
 def test_story_loads_with_intro(page, server_url):
     page.goto(f"{server_url}/story/2026")
     stage = page.locator(".stage").inner_text()
-    assert "Homelab Wrapped" in stage
+    # the kicker chip renders uppercase via CSS text-transform
+    assert "homelab wrapped" in stage.lower()
     assert "Your 2026" in stage
 
 

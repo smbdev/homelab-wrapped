@@ -6,12 +6,12 @@ const W = 1080;
 const H = 1350; // 4:5 portrait, share-friendly
 
 const COLORS = {
-  bg: "oklch(0.12 0 0)",
-  surface: "oklch(0.17 0.004 36)",
-  ink: "oklch(0.96 0.005 36)",
-  muted: "oklch(0.74 0.01 36)",
-  primary: "oklch(0.68 0.16 36)",
-  accent: "oklch(0.85 0.12 85)",
+  bg: "#0a0a0a",
+  surface: "#151515",
+  ink: "#fafafa",
+  muted: "#9ca3af",
+  primary: "#ea2b2b",
+  accent: "#fafafa",
 };
 
 const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -53,6 +53,33 @@ function drawCentered(ctx, text, y, font, color, lineHeight = 1.2) {
   return y;
 }
 
+/* Category chip at the top: "media.total_hours" → red dot + "MEDIA" pill. */
+function drawChip(ctx, fact, y) {
+  const label = (fact || "").split(".")[0].replaceAll("_", " ").toUpperCase();
+  if (!label) return;
+  ctx.font = `600 26px ${FONT}`;
+  ctx.letterSpacing = "6px";
+  const tw = ctx.measureText(label).width;
+  const pad = 36;
+  const dot = 12;
+  const cw = tw + dot + 18 + pad * 2;
+  const x = (W - cw) / 2;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(x, y - 42, cw, 62, 31);
+  ctx.stroke();
+  ctx.fillStyle = COLORS.primary;
+  ctx.beginPath();
+  ctx.arc(x + pad + dot / 2, y - 11, dot / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.muted;
+  ctx.textAlign = "left";
+  ctx.fillText(label, x + pad + dot + 18, y);
+  ctx.letterSpacing = "0px";
+  ctx.textAlign = "center";
+}
+
 export function renderCardPNG(card, periodLabel) {
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -62,42 +89,66 @@ export function renderCardPNG(card, periodLabel) {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, W, H);
 
-  // a soft ember glow behind the number — the projector beam
-  const glow = ctx.createRadialGradient(W / 2, H * 0.42, 60, W / 2, H * 0.42, 620);
-  glow.addColorStop(0, "oklch(0.22 0.045 36)");
-  glow.addColorStop(1, COLORS.bg);
+  // red glow behind the content
+  const glow = ctx.createRadialGradient(W / 2, H * 0.42, 80, W / 2, H * 0.42, 720);
+  glow.addColorStop(0, "rgba(234, 43, 43, 0.16)");
+  glow.addColorStop(1, "rgba(234, 43, 43, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
+
+  // film grain — felt, not seen
+  for (let i = 0; i < 2800; i++) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.045})`;
+    ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+  }
+
+  // hairline frame
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(36, 36, W - 72, H - 72, 56);
+  ctx.stroke();
+
+  drawChip(ctx, card.fact, 160);
 
   ctx.fillStyle = COLORS.muted;
   ctx.font = `600 34px ${FONT}`;
   ctx.textAlign = "center";
-  ctx.fillText(periodLabel, W / 2, 140);
+  ctx.fillText(periodLabel, W / 2, 250);
 
   if (card.template === "top_list") {
-    drawCentered(ctx, card.headline, 320, `700 64px ${FONT}`, COLORS.ink);
-    let y = 470;
+    drawCentered(ctx, card.headline, 380, `700 64px ${FONT}`, COLORS.ink);
+    let y = 480;
     (card.items || []).slice(0, 5).forEach((item, i) => {
+      // surface row with hairline, like the on-screen list
+      ctx.fillStyle = i === 0 ? "rgba(234, 43, 43, 0.1)" : "rgba(255, 255, 255, 0.04)";
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(110, y, W - 220, 96, 20);
+      ctx.fill();
+      ctx.stroke();
+      const baseline = y + 62;
       ctx.textAlign = "left";
       ctx.font = `800 44px ${FONT}`;
       ctx.fillStyle = COLORS.primary;
-      ctx.fillText(String(i + 1), 140, y);
-      ctx.font = `600 44px ${FONT}`;
+      ctx.fillText(String(i + 1), 150, baseline);
+      ctx.font = `600 42px ${FONT}`;
       ctx.fillStyle = COLORS.ink;
       const label =
         item.label.length > 26 ? item.label.slice(0, 25) + "…" : item.label;
-      ctx.fillText(label, 210, y);
+      ctx.fillText(label, 220, baseline);
       ctx.textAlign = "right";
-      ctx.font = `400 38px ${FONT}`;
+      ctx.font = `400 36px ${FONT}`;
       ctx.fillStyle = i === 0 ? COLORS.accent : COLORS.muted;
-      ctx.fillText(String(item.value), W - 140, y);
-      y += 110;
+      ctx.fillText(String(item.value), W - 150, baseline);
+      y += 118;
     });
   } else if (card.template === "comparison") {
-    drawCentered(ctx, card.headline, 320, `700 64px ${FONT}`, COLORS.ink);
+    drawCentered(ctx, card.headline, 380, `700 64px ${FONT}`, COLORS.ink);
     const items = (card.items || []).slice(0, 4);
     const max = Math.max(...items.map((i) => Number(i.raw ?? i.value) || 0), 1);
-    let y = 480;
+    let y = 520;
     for (const [i, item] of items.entries()) {
       ctx.textAlign = "left";
       ctx.font = `600 40px ${FONT}`;
@@ -106,36 +157,65 @@ export function renderCardPNG(card, periodLabel) {
       ctx.textAlign = "right";
       ctx.fillStyle = COLORS.muted;
       ctx.fillText(String(item.value), W - 140, y);
+      // full-width track, then the value bar on top
+      ctx.fillStyle = "rgba(255, 255, 255, 0.07)";
+      ctx.beginPath();
+      ctx.roundRect(140, y + 28, W - 280, 24, 12);
+      ctx.fill();
       const w = Math.max((Number(item.raw ?? item.value) || 0) / max, 0.04) * (W - 280);
       ctx.fillStyle = i === 1 ? COLORS.accent : COLORS.primary;
       ctx.beginPath();
-      ctx.roundRect(140, y + 24, w, 20, 10);
+      ctx.roundRect(140, y + 28, w, 24, 12);
       ctx.fill();
-      y += 150;
+      y += 160;
     }
   } else {
     // big_number / superlative / streak: one huge value
     const value = fmt(card.value);
-    const color = card.template === "streak" ? COLORS.accent : COLORS.primary;
-    ctx.font = `800 260px ${FONT}`;
-    // shrink to fit if the number is long
-    if (ctx.measureText(value).width > W - 200) ctx.font = `800 170px ${FONT}`;
-    ctx.fillStyle = color;
+    let size = 280;
+    ctx.font = `800 ${size}px ${FONT}`;
+    if (ctx.measureText(value).width > W - 220) {
+      size = 180;
+      ctx.font = `800 ${size}px ${FONT}`;
+    }
     ctx.textAlign = "center";
-    ctx.fillText(value, W / 2, 620);
+    // ghost echo behind the number
+    ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+    ctx.font = `800 ${Math.round(size * 1.7)}px ${FONT}`;
+    ctx.fillText(value, W / 2, 700);
+    // gradient-filled number, white for streaks and red for the rest
+    ctx.font = `800 ${size}px ${FONT}`;
+    const grad = ctx.createLinearGradient(0, 640 - size, 0, 640);
+    if (card.template === "streak") {
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(1, "#9ca3af");
+    } else {
+      grad.addColorStop(0, "#ff6b6b");
+      grad.addColorStop(0.55, COLORS.primary);
+      grad.addColorStop(1, "#a81a1a");
+    }
+    ctx.fillStyle = grad;
+    ctx.fillText(value, W / 2, 640);
 
     const prefix = value + " ";
     const label = card.headline.startsWith(prefix)
       ? card.headline.slice(prefix.length)
       : card.headline;
-    let y = drawCentered(ctx, label, 760, `700 64px ${FONT}`, COLORS.ink);
+    let y = drawCentered(ctx, label, 790, `700 64px ${FONT}`, COLORS.ink);
     if (card.sub) drawCentered(ctx, card.sub, y + 40, `400 44px ${FONT}`, COLORS.muted);
   }
 
-  ctx.font = `600 32px ${FONT}`;
-  ctx.fillStyle = COLORS.muted;
+  // footer wordmark
+  ctx.font = `700 30px ${FONT}`;
+  ctx.letterSpacing = "8px";
   ctx.textAlign = "center";
-  ctx.fillText("· Homelab Wrapped ·", W / 2, H - 90);
+  ctx.fillStyle = COLORS.muted;
+  ctx.fillText("HOMELAB WRAPPED", W / 2, H - 100);
+  ctx.letterSpacing = "0px";
+  ctx.fillStyle = COLORS.primary;
+  ctx.beginPath();
+  ctx.arc(W / 2, H - 148, 5, 0, Math.PI * 2);
+  ctx.fill();
 
   return canvas;
 }
