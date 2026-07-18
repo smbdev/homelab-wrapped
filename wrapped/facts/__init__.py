@@ -161,6 +161,28 @@ def _network_by_service(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
+def _docs_total(ctx: FactContext) -> dict[str, Any] | None:
+    count, _ = ctx.store.totals(ctx.since, ctx.until, kind="doc.added")
+    if not count:
+        return None
+    return {
+        "value": count,
+        "headline": f"{plural(count, 'document')} archived",
+        "sub": "the filing cabinet never stood a chance",
+    }
+
+
+def _docs_top_senders(ctx: FactContext) -> dict[str, Any] | None:
+    top = ctx.store.top(ctx.since, ctx.until, kind="doc.added", by="count")
+    top = [(label, n, v) for label, n, v in top if label]
+    if not top:
+        return None
+    return {
+        "headline": "Who sent all that paper",
+        "items": [{"label": label, "value": plural(n, "doc")} for label, n, _ in top],
+    }
+
+
 def _dns_blocked_total(ctx: FactContext) -> dict[str, Any] | None:
     _, blocked = ctx.store.totals(ctx.since, ctx.until, kind="dns.blocked")
     if blocked < 1000:
@@ -219,6 +241,8 @@ FACTS: list[Fact] = [
     Fact("activity.by_day", "heatmap", _activity_heatmap),
     Fact("network.total", "big_number", _network_total),
     Fact("network.by_service", "comparison", _network_by_service),
+    Fact("docs.total", "big_number", _docs_total),
+    Fact("docs.top_senders", "top_list", _docs_top_senders),
     Fact("dns.blocked_total", "big_number", _dns_blocked_total),
     Fact("dns.top_blocked", "top_list", _dns_top_blocked),
     Fact("system.containers", "big_number", _system_containers),
