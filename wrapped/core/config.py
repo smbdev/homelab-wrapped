@@ -65,6 +65,7 @@ class AppConfig:
     connectors: list[ConnectorEntry]
     schedule: ScheduleConfig
     email: EmailConfig | None
+    auth: str = "local"  # local (built-in account) | proxy (trust X-Auth-User)
 
 
 _MANAGED_HEADER = (
@@ -206,6 +207,10 @@ def load_config(path: str | Path) -> AppConfig:
         # background jobs and the CLI agree on where the data lives.
         database = Path(path).parent / database
 
+    auth = str(raw.get("auth", "local"))
+    if auth not in ("local", "proxy"):
+        raise ValueError(f"auth must be 'local' or 'proxy', not {auth!r}")
+
     return AppConfig(
         timezone=tz,
         database=database,
@@ -213,4 +218,5 @@ def load_config(path: str | Path) -> AppConfig:
         connectors=connectors,
         schedule=schedule,
         email=email,
+        auth=auth,
     )
