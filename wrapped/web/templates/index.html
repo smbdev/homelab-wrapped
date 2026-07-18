@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+<main class="index">
+  <header class="index-head">
+    <h1>Homelab Wrapped</h1>
+    <p class="tagline">Your homelab's year, on your own hardware.</p>
+  </header>
+
+  {% if missing %}
+  <p class="notice" role="alert">No recap called “{{ missing }}” — here's what you have:</p>
+  {% endif %}
+
+  {% if stories %}
+  <nav aria-label="Saved recaps">
+    <ul class="recap-list">
+      {% for s in stories %}
+      <li><a class="recap-link" href="/story/{{ s.id }}">{{ s.label }}<span class="go" aria-hidden="true">→</span></a></li>
+      {% endfor %}
+    </ul>
+  </nav>
+  {% else %}
+  <div class="empty">
+    <p>No recaps yet. Two commands and you're in:</p>
+    <pre><code>wrapped sync
+wrapped build</code></pre>
+    <p class="hint">Then refresh this page.</p>
+  </div>
+  {% endif %}
+</main>
+{% endblock %}
