@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "period": {
+    "type": "year",
+    "id": "2026",
+    "label": "Your 2026"
+  },
+  "generated_at": "2027-01-01T09:00:00+00:00",
+  "cards": [
+    {
+      "template": "big_number",
+      "fact": "media.total_hours",
+      "private": false,
+      "value": 1,
+      "headline": "1 hour watched"
+    },
+    {
+      "template": "top_list",
+      "fact": "media.top_shows",
+      "private": false,
+      "headline": "Your top shows",
+      "items": [
+        {
+          "label": "The Bear",
+          "value": "2 eps"
+        }
+      ]
+    },
+    {
+      "template": "big_number",
+      "fact": "photos.total",
+      "private": false,
+      "value": 1,
+      "headline": "1 photo taken"
+    },
+    {
+      "template": "superlative",
+      "fact": "photos.busiest_day",
+      "private": false,
+      "value": 1,
+      "headline": "1 photo in one day",
+      "sub": "Your camera's big day out: 14 February"
+    },
+    {
+      "template": "streak",
+      "fact": "activity.streak",
+      "private": false,
+      "value": 2,
+      "headline": "A 2-day streak",
+      "sub": "Every single day from 5 January"
+    },
+    {
+      "template": "heatmap",
+      "fact": "activity.by_day",
+      "private": false,
+      "headline": "Your year, day by day",
+      "data": {
+        "2026-01-05": 1,
+        "2026-01-06": 1,
+        "2026-02-14": 1,
+        "2026-03-01": 1,
+        "2026-03-02": 1
+      }
+    }
+  ]
+}
