@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from wrapped.core.config import load_config
+from wrapped.core.config import add_connector, create_starter_config, load_config
 
 
 def write(tmp_path, text):
@@ -114,3 +114,12 @@ def test_add_connector_preserves_other_settings(tmp_path):
     assert cfg.timezone == ZoneInfo("Europe/Berlin")
     assert cfg.retention_days == 30
     assert len(cfg.connectors) == 1
+
+
+def test_config_files_are_owner_only(tmp_path):
+    """config.yaml holds connector API keys — never group/world readable."""
+    path = tmp_path / "config.yaml"
+    create_starter_config(path)
+    assert (path.stat().st_mode & 0o777) == 0o600
+    add_connector(path, "svc", "generic_csv", {"path": "/data/x.csv"})
+    assert (path.stat().st_mode & 0o777) == 0o600
