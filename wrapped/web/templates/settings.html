@@ -300,7 +300,10 @@
       if (!resp.ok) { status(data.error); return; }
     } catch { status("scan failed — is the server still running?"); return; }
     if (!data.found.length) { status("no recognisable services found running in Docker."); return; }
-    status(`found ${data.found.length} recognised service${data.found.length > 1 ? "s" : ""}`);
+    const skipped = data.unknown?.length
+      ? ` · also saw ${data.unknown.length} without a connector yet: ${data.unknown.slice(0, 6).join(", ")}${data.unknown.length > 6 ? "…" : ""}`
+      : "";
+    status(`found ${data.found.length} recognised service${data.found.length > 1 ? "s" : ""}${skipped}`);
     for (const s of data.found) {
       const li = document.createElement("li");
       li.className = "hw-row";

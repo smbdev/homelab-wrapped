@@ -81,8 +81,11 @@ def _photos_busiest_day(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
+_INFRA_KINDS = ("net.", "system.")  # samples, not human activity
+
+
 def _activity_streak(ctx: FactContext) -> dict[str, Any] | None:
-    days = ctx.store.by_day(ctx.since, ctx.until, ctx.tz)
+    days = ctx.store.by_day(ctx.since, ctx.until, ctx.tz, exclude=_INFRA_KINDS)
     length, start = longest_streak(days)
     if length < 2:
         return None
@@ -95,12 +98,80 @@ def _activity_streak(ctx: FactContext) -> dict[str, Any] | None:
 
 def _activity_heatmap(ctx: FactContext) -> dict[str, Any] | None:
     # Counts, not values: values mix units across kinds (minutes vs photos).
-    days = ctx.store.by_day(ctx.since, ctx.until, ctx.tz, count=True)
+    days = ctx.store.by_day(ctx.since, ctx.until, ctx.tz, count=True, exclude=_INFRA_KINDS)
     if not days:
         return None
     return {
         "headline": "Your year, day by day",
         "data": {d.isoformat(): int(v) for d, v in sorted(days.items())},
+    }
+
+
+def _human_bytes(n: float) -> str:
+    if n >= 1e12:
+        return f"{n / 1e12:.1f} TB"
+    if n >= 1e9:
+        return f"{round(n / 1e9):,} GB"
+    return f"{round(n / 1e6):,} MB"
+
+
+def _net_deltas(ctx: FactContext) -> dict[str, float]:
+    """Total bytes moved per container across the window.
+
+    Samples are cumulative counters; a counter that shrank means the
+    container restarted, so that sample contributes its own value rather
+    than a negative delta.
+    """
+    last: dict[str, float] = {}
+    moved: dict[str, float] = {}
+    for e in ctx.store.events(ctx.since, ctx.until, kind="net.sample"):
+        name = e.entity or "unknown"
+        prev = last.get(name)
+        if prev is not None:
+            moved[name] = moved.get(name, 0.0) + (e.value - prev if e.value >= prev else e.value)
+        last[name] = e.value
+    return {k: v for k, v in moved.items() if v > 0}
+
+
+def _network_total(ctx: FactContext) -> dict[str, Any] | None:
+    total = sum(_net_deltas(ctx).values())
+    if total < 1e9:
+        return None  # under a gigabyte isn't a story
+    value: float | int
+    if total >= 1e12:
+        value, unit = round(total / 1e12, 1), "TB"
+    else:
+        value, unit = round(total / 1e9), "GB"
+    days = max((ctx.until - ctx.since).days, 1)
+    return {
+        "value": value,
+        "headline": f"{value:,} {unit} moved by your rack",
+        "sub": f"≈ {_human_bytes(total / days)} a day through your containers",
+    }
+
+
+def _network_by_service(ctx: FactContext) -> dict[str, Any] | None:
+    per = _net_deltas(ctx)
+    if len(per) < 2:
+        return None
+    top = sorted(per.items(), key=lambda kv: kv[1], reverse=True)[:4]
+    return {
+        "headline": "Who moved the most bits",
+        "items": [{"label": name, "value": _human_bytes(n), "raw": round(n)} for name, n in top],
+    }
+
+
+def _system_containers(ctx: FactContext) -> dict[str, Any] | None:
+    latest = None
+    for e in ctx.store.events(ctx.since, ctx.until, kind="system.containers"):
+        latest = e  # events yield oldest→newest
+    if latest is None or latest.value < 1:
+        return None
+    n = int(latest.value)
+    return {
+        "value": n,
+        "headline": f"{plural(n, 'container')} kept running",
+        "sub": "one very reliable box",
     }
 
 
@@ -121,4 +192,7 @@ FACTS: list[Fact] = [
     Fact("photos.busiest_day", "superlative", _photos_busiest_day),
     Fact("activity.streak", "streak", _activity_streak),
     Fact("activity.by_day", "heatmap", _activity_heatmap),
+    Fact("network.total", "big_number", _network_total),
+    Fact("network.by_service", "comparison", _network_by_service),
+    Fact("system.containers", "big_number", _system_containers),
 ]

@@ -112,20 +112,24 @@ def test_scan_route_returns_suggestions(client, monkeypatch):
     monkeypatch.setattr(
         discover,
         "scan",
-        lambda: [
-            {
-                "type": "immich",
-                "name": "immich",
-                "fields": {},
-                "port": 2283,
-                "ready": True,
-                "note": "n",
-            }
-        ],
+        lambda: {
+            "unknown": ["pihole"],
+            "found": [
+                {
+                    "type": "immich",
+                    "name": "immich",
+                    "fields": {},
+                    "port": 2283,
+                    "ready": True,
+                    "note": "n",
+                }
+            ],
+        },
     )
     r = client.get("/settings/scan")
     assert r.status_code == 200
     assert r.json()["found"][0]["type"] == "immich"
+    assert r.json()["unknown"] == ["pihole"]
 
 
 def test_scan_route_explains_missing_socket(client, monkeypatch):

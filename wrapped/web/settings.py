@@ -211,11 +211,11 @@ def add_settings_routes(app: FastAPI, templates, config_path: Path) -> None:
                 status_code=503,
             )
         try:
-            found = discover.scan()
+            result = discover.scan()
         except OSError as exc:
             return JSONResponse({"error": f"Could not read Docker: {exc}"}, status_code=502)
         plugins = all_connectors()
-        for s in found:
+        for s in result["found"]:
             # which required fields the browser can't derive (url comes from
             # the scanned port) — these expand the inline credential step
             schema = plugins[s["type"]].schema
@@ -227,7 +227,7 @@ def add_settings_routes(app: FastAPI, templates, config_path: Path) -> None:
                 and not (f.key == "url" and s.get("port"))
             ]
             s["descriptions"] = {f.key: f.description for f in schema}
-        return {"found": found}
+        return result
 
     @app.post("/settings/connectors/{name}/delete")
     def delete(name: str):

@@ -28,6 +28,11 @@ connectors: {}
   #   timezone: Europe/London      # zone your Jellyfin server logs in
   #   user_id: abc123              # only this user's plays
   #
+  # This server, via the read-only Docker socket the compose file mounts:
+  # network traffic per container + container counts. No credentials.
+  # this-server:
+  #   type: docker_stats
+  #
   # Immich, via its API (create a key in Account Settings → API Keys).
   # immich:
   #   type: immich

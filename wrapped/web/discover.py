@@ -9,11 +9,10 @@ unavailable instead of failing.
 
 from __future__ import annotations
 
-import http.client
-import json
-import socket
 from pathlib import Path
 from typing import Any
+
+from wrapped.connectors.docker_stats import docker_get
 
 SOCKET_PATH = "/var/run/docker.sock"
 
@@ -22,33 +21,9 @@ SOCKET_PATH = "/var/run/docker.sock"
 _JELLYFIN_MOUNT_TARGET = "/jellyfin-data"
 
 
-class _UnixHTTPConnection(http.client.HTTPConnection):
-    def __init__(self, path: str) -> None:
-        super().__init__("localhost", timeout=10)
-        self._path = path
-
-    def connect(self) -> None:
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock.settimeout(10)
-        sock.connect(self._path)
-        self.sock = sock
-
-
 def docker_available() -> bool:
     """True when the Docker socket is mounted into this environment."""
     return Path(SOCKET_PATH).is_socket()
-
-
-def _docker_get(path: str) -> Any:
-    conn = _UnixHTTPConnection(SOCKET_PATH)
-    try:
-        conn.request("GET", path)
-        resp = conn.getresponse()
-        if resp.status != 200:
-            raise OSError(f"Docker API returned {resp.status} for {path}")
-        return json.load(resp)
-    finally:
-        conn.close()
 
 
 def _public_port(container: dict, private: int) -> int | None:
@@ -69,16 +44,28 @@ def _config_mount(container: dict) -> str | None:
     return None
 
 
-def scan() -> list[dict[str, Any]]:
+def scan() -> dict[str, Any]:
     """Return connector suggestions for recognised running containers.
 
-    Each suggestion: ``type`` and ``name`` for the add form, ``fields`` to
-    prefill, ``ready`` (everything needed is prefilled or just a secret away),
-    ``port`` for the browser to compose a URL from its own hostname, and a
-    human ``note`` explaining any remaining step.
+    Returns ``found`` (suggestions) and ``unknown`` (running containers we
+    have no connector for yet). Each suggestion: ``type`` and ``name`` for
+    the add form, ``fields`` to prefill, ``ready`` (everything needed is
+    prefilled or just a secret away), ``port`` for the browser to compose a
+    URL from its own hostname, and a human ``note`` for any remaining step.
     """
-    suggestions = []
-    for c in _docker_get("/containers/json"):
+    suggestions = [
+        {
+            "type": "docker_stats",
+            "name": "this-server",
+            "fields": {},
+            "port": None,
+            "ready": True,
+            "note": "Network traffic and container counts from the Docker socket "
+            "you already mounted — no credentials needed.",
+        }
+    ]
+    unknown: list[str] = []
+    for c in docker_get("/containers/json"):
         image = c.get("Image", "")
         name = (c.get("Names") or ["/unknown"])[0].lstrip("/")
 
@@ -123,4 +110,6 @@ def scan() -> list[dict[str, Any]]:
                     "note": "Paste an API key from Immich → Account Settings → API Keys.",
                 }
             )
-    return suggestions
+        elif "homelab-wrapped" not in image:  # don't report ourselves as a mystery
+            unknown.append(name)
+    return {"found": suggestions, "unknown": sorted(unknown)}

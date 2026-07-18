@@ -256,6 +256,7 @@ class EventStore:
         kind: str | None = None,
         source: str | None = None,
         count: bool = False,
+        exclude: tuple[str, ...] = (),
     ) -> dict[date, float]:
         """Aggregate events per local calendar day (heatmaps, streaks, busiest day).
 
@@ -266,10 +267,15 @@ class EventStore:
             tz: The user's tzinfo; days are bucketed in this zone.
             count: Count events per day instead of summing their values —
                 use when mixing kinds whose values have different units.
+            exclude: Kind prefixes to leave out — infrastructure samples
+                (``net.``, ``system.``) would otherwise fake daily activity.
         """
         # ponytail: O(n) over window rows — fine at homelab scale, push to SQL if it isn't
         days: dict[date, float] = {}
         clauses, params = self._window(since, until, kind, source)
+        for prefix in exclude:
+            clauses += " AND kind NOT LIKE ?"
+            params.append(prefix + "%")
         rows = self._db.execute(
             f"SELECT ts, value FROM events WHERE {clauses}",  # noqa: S608
             params,
