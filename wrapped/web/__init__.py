@@ -51,22 +51,69 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
         add_auth(app, templates, config_path.parent / "auth.json", auth_mode)
         add_settings_routes(app, templates, config_path)
 
-    def story_index() -> list[dict[str, str]]:
+    def story_index() -> list[dict]:
         entries = []
         for period_id in list_stories(stories_dir):
             try:
                 story = load_story(stories_dir, period_id)
             except (OSError, json.JSONDecodeError):
                 continue  # a corrupt file shouldn't take down the index
-            entries.append({"id": period_id, "label": story["period"]["label"]})
+            cards = story.get("cards", [])
+            entries.append(
+                {
+                    "id": period_id,
+                    "label": story["period"]["label"],
+                    "kind": {"year": "yearly", "month": "monthly"}.get(
+                        story["period"].get("type", ""), "recap"
+                    ),
+                    "n_cards": len(cards),
+                    "minutes": max(1, round(len(cards) * 12 / 60)),
+                    "cards": cards,
+                }
+            )
+        # yearly recaps lead (newest first), monthlies follow — the first
+        # entry is the dashboard's featured card; two stable sorts do it
+        entries.sort(key=lambda e: e["id"], reverse=True)
+        entries.sort(key=lambda e: e["kind"] != "yearly")
         return entries
+
+    def dashboard_extras(stories: list[dict]) -> dict:
+        """Stat strip + ticker for the hub, from real facts only (no card data
+        leaves this function for private cards — same redaction rule as export)."""
+        stats: list[dict] = [{"value": len(stories), "unit": "", "label": "recaps"}]
+        if config_path is not None:
+            try:
+                from wrapped.core.config import load_config
+
+                stats.insert(
+                    0,
+                    {
+                        "value": len(load_config(config_path).connectors),
+                        "unit": "",
+                        "label": "services",
+                    },
+                )
+            except (FileNotFoundError, ValueError):
+                pass
+        ticker: list[str] = []
+        if stories:
+            public = [c for c in stories[0]["cards"] if not c.get("private")]
+            for card in public:
+                if card.get("fact") == "media.total_hours" and card.get("value"):
+                    stats.append({"value": card["value"], "unit": "h", "label": "watched"})
+                if card.get("headline"):
+                    ticker.append(card["headline"])
+        return {"stats": stats, "ticker": ticker}
 
     has_settings = config_path is not None
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
+        stories = story_index()
         return templates.TemplateResponse(
-            request, "index.html", {"stories": story_index(), "has_settings": has_settings}
+            request,
+            "index.html",
+            {"stories": stories, "has_settings": has_settings, **dashboard_extras(stories)},
         )
 
     @app.get("/story/{period_id}", response_class=HTMLResponse)
@@ -84,7 +131,7 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
 
     @app.get("/api/stories")
     def api_stories() -> list[dict[str, str]]:
-        return story_index()
+        return [{"id": e["id"], "label": e["label"]} for e in story_index()]
 
     @app.get("/api/stories/{period_id}")
     def api_story(period_id: str):

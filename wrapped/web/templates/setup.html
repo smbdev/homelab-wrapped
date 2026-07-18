@@ -1,29 +1,35 @@
 {% extends "base.html" %}
 {% block title %}First-run setup — Homelab Wrapped{% endblock %}
 {% block body %}
-<main class="index">
-  <header class="index-head">
+<canvas id="hw-bg" aria-hidden="true"></canvas>
+<main class="hw-auth">
+  <div class="hw-auth-card">
+    <p class="hw-term" data-lines='["booting recap.engine ......... ok"]'></p>
+    <span class="hw-mark">Homelab Wrapped</span>
     <h1>Create your admin account</h1>
-    <p class="tagline">First-run setup. This account lives only on this box.</p>
-  </header>
+    <p class="sub">First-run setup. This account controls which services get connected — it lives only on this box.</p>
 
-  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+    {% if error %}<p class="hw-notice hw-notice--err" role="alert">{{ error }}</p>{% endif %}
 
-  <form method="post" action="/setup" class="add-form">
-    <label>Username
-      <input name="username" required pattern="[A-Za-z0-9_-]+" autocomplete="username"
-             value="{{ username or '' }}" title="Letters, digits, - or _">
-    </label>
-    <label>Password
-      <input name="password" type="password" required minlength="8" autocomplete="new-password">
-    </label>
-    <label>Confirm password
-      <input name="confirm" type="password" required minlength="8" autocomplete="new-password">
-    </label>
-    <button class="btn" type="submit">Create account &amp; continue</button>
-    <p class="hint">Behind a trusted reverse proxy? Set <code>auth: proxy</code> in
-      <code>config.yaml</code> and restart — sign-in is then handled upstream via
-      <code>X-Auth-User</code>.</p>
-  </form>
+    <form method="post" action="/setup">
+      <label class="hw-field"><span class="lbl">Username</span>
+        <input name="username" required pattern="[A-Za-z0-9_-]+" autocomplete="username"
+               placeholder="admin" value="{{ username or '' }}" title="Letters, digits, - or _">
+      </label>
+      <label class="hw-field"><span class="lbl">Password</span>
+        <input name="password" type="password" required minlength="8" autocomplete="new-password">
+      </label>
+      <label class="hw-field"><span class="lbl">Confirm password</span>
+        <input name="confirm" type="password" required minlength="8" autocomplete="new-password">
+      </label>
+      <button class="hw-btn hw-btn--wide" type="submit">Create account &amp; continue</button>
+    </form>
+
+    <div class="hw-auth-foot">
+      <p class="hw-hint" style="margin:0">Behind a trusted reverse proxy?<br>Auth is handled upstream via <b>X-Auth-User</b>.</p>
+      <p class="hw-hint" style="margin:0">Set <b>auth: proxy</b><br>in <b>config.yaml</b></p>
+    </div>
+  </div>
 </main>
+<script src="/static/hw-bg.js" type="module"></script>
 {% endblock %}
