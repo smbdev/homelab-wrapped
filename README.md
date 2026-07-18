@@ -32,6 +32,28 @@ Open <http://localhost:8000> and press play on your year.
 
 See the quick start above. One container, one `/data` volume (config, cache, stories). With `schedule:` enabled in config, the same container also builds monthly recaps and On This Day pages automatically.
 
+### Portainer, Dockge, Komodo & friends
+
+Prebuilt multi-arch images (amd64 + arm64) are on GHCR: `ghcr.io/smbdev/homelab-wrapped`. Paste this stack into your manager's web editor (Portainer: **Stacks → Add stack**):
+
+```yaml
+services:
+  wrapped:
+    image: ghcr.io/smbdev/homelab-wrapped:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - /opt/wrapped/data:/data   # host path holding config.yaml
+    restart: unless-stopped
+```
+
+Before deploying, put a `config.yaml` in the host directory you mount (start from [config.example.yaml](config.example.yaml)), and add read-only mounts for whatever your connectors read — e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`. Then run your first sync from the manager's console (or SSH):
+
+```bash
+docker exec homelab-wrapped wrapped sync
+docker exec homelab-wrapped wrapped build
+```
+
 ### pip
 
 ```bash
