@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Settings — Homelab Wrapped{% endblock %}
+{% block body %}
+<main class="index">
+  <header class="index-head">
+    <nav class="crumbs"><a href="/">← All recaps</a></nav>
+    <h1>Settings</h1>
+    <p class="tagline">Connect the services your recaps are built from.</p>
+  </header>
+
+  {% if msg %}<p class="notice" role="status">{{ msg }}</p>{% endif %}
+  {% if err %}<p class="notice error" role="alert">{{ err }}</p>{% endif %}
+
+  <section aria-labelledby="connected-h">
+    <h2 id="connected-h">Connected services</h2>
+    {% if configured %}
+    <ul class="service-list">
+      {% for c in configured %}
+      <li>
+        <span class="name">{{ c.name }}</span>
+        <span class="type">{{ plugins[c.type].name if c.type in plugins else c.type }}</span>
+        <form method="post" action="/settings/connectors/{{ c.name }}/delete">
+          <button class="btn ghost danger" aria-label="Remove {{ c.name }}">Remove</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint">Nothing connected yet — add your first service below.</p>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="add-h">
+    <h2 id="add-h">Add a service</h2>
+    <form method="post" action="/settings/connectors" class="add-form">
+      <label>Service
+        <select name="type" id="type-select">
+          {% for pid, p in plugins.items() %}
+          <option value="{{ pid }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Name this connection
+        <input name="name" required pattern="[A-Za-z0-9_-]+" placeholder="e.g. living-room-jellyfin"
+               title="Letters, digits, - or _">
+      </label>
+      <div id="plugin-fields"></div>
+      <button class="btn" type="submit">Add &amp; test connection</button>
+      <p class="hint">Credentials stay in <code>config.yaml</code> on your server — nothing leaves it.</p>
+    </form>
+  </section>
+</main>
+
+<script type="application/json" id="plugin-schemas">{{ plugins | tojson }}</script>
+<script>
+  // Render the selected plugin's config fields from its declared schema.
+  const schemas = JSON.parse(document.getElementById("plugin-schemas").textContent);
+  const select = document.getElementById("type-select");
+  const holder = document.getElementById("plugin-fields");
+  function renderFields() {
+    holder.replaceChildren();
+    for (const f of schemas[select.value].fields) {
+      const label = document.createElement("label");
+      const words = f.key.replaceAll("_", " ");
+      const pretty = words[0].toUpperCase() + words.slice(1);
+      label.append(pretty + (f.required ? "" : " (optional)"));
+      const input = document.createElement("input");
+      input.name = f.key;
+      input.required = f.required;
+      input.placeholder = f.description;
+      if (f.key.includes("key") || f.key.includes("password")) input.type = "password";
+      label.append(input);
+      holder.append(label);
+    }
+  }
+  select.addEventListener("change", renderFields);
+  renderFields();
+</script>
+{% endblock %}

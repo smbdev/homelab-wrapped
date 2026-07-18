@@ -11,6 +11,7 @@ import time
 import pytest
 import uvicorn
 
+from wrapped.core.config import create_starter_config
 from wrapped.web import create_app
 
 RICH_STORY = {
@@ -72,11 +73,17 @@ EMPTY_STORY = {
 
 @pytest.fixture(scope="session")
 def server_url(tmp_path_factory):
-    stories = tmp_path_factory.mktemp("stories")
+    root = tmp_path_factory.mktemp("app")
+    stories = root / "stories"
+    stories.mkdir()
     (stories / "2026.json").write_text(json.dumps(RICH_STORY))
     (stories / "2026-02.json").write_text(json.dumps(EMPTY_STORY))
+    config_path = root / "config.yaml"
+    create_starter_config(config_path)
 
-    config = uvicorn.Config(create_app(stories), host="127.0.0.1", port=0, log_level="error")
+    config = uvicorn.Config(
+        create_app(stories, config_path=config_path), host="127.0.0.1", port=0, log_level="error"
+    )
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()

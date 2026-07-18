@@ -2,7 +2,10 @@
 {% block body %}
 <main class="index">
   <header class="index-head">
-    <h1>Homelab Wrapped</h1>
+    <div class="head-row">
+      <h1>Homelab Wrapped</h1>
+      {% if has_settings %}<a class="settings-link" href="/settings">Settings</a>{% endif %}
+    </div>
     <p class="tagline">Your homelab's year, on your own hardware.</p>
   </header>
 
@@ -20,11 +23,17 @@
   </nav>
   {% else %}
   <div class="empty">
+    {% if has_settings %}
+    <p>No recaps yet — connect a service and your first recap builds itself.</p>
+    <a class="btn" href="/settings">Add your services</a>
+    <p class="hint">Prefer a file? Edit <code>config.yaml</code> and restart, or run <code>wrapped sync</code> and <code>wrapped build</code> by hand.</p>
+    {% else %}
     <p>No recaps yet. Point <code>config.yaml</code> at your services and restart — your recap syncs and builds automatically on startup.</p>
     <p>Or run it by hand any time:</p>
     <pre><code>wrapped sync
 wrapped build</code></pre>
     <p class="hint">In Docker, prefix with <code>docker exec homelab-wrapped</code>. Then refresh this page.</p>
+    {% endif %}
   </div>
   {% endif %}
 </main>
