@@ -33,6 +33,12 @@ connectors: {}
   # this-server:
   #   type: docker_stats
   #
+  # Paperless-ngx, via its API (Settings → Django admin → Auth tokens).
+  # paperless:
+  #   type: paperless
+  #   url: http://paperless.local:8000
+  #   api_token: YOUR_PAPERLESS_TOKEN
+  #
   # Pi-hole, via its FTL query database (mount /etc/pihole read-only).
   # pihole:
   #   type: pihole
