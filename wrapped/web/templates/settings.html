@@ -30,6 +30,16 @@
     {% endif %}
   </section>
 
+  <section aria-labelledby="scan-h">
+    <h2 id="scan-h">Find services automatically</h2>
+    <div class="scan-box">
+      <button class="btn" id="scan-btn" type="button">Scan this server</button>
+      <p class="hint">Looks at the Docker containers running on this machine and prefills the form for services it recognises. Local only — nothing leaves your server.</p>
+      <p class="hint scan-status" id="scan-status" role="status" hidden></p>
+      <ul class="service-list" id="scan-results"></ul>
+    </div>
+  </section>
+
   <section aria-labelledby="add-h">
     <h2 id="add-h">Add a service</h2>
     <form method="post" action="/settings/connectors" class="add-form">
@@ -75,5 +85,57 @@
   }
   select.addEventListener("change", renderFields);
   renderFields();
+
+  // Scan: ask the server for recognised Docker containers, prefill the form.
+  const scanBtn = document.getElementById("scan-btn");
+  const scanStatus = document.getElementById("scan-status");
+  const scanResults = document.getElementById("scan-results");
+  function status(text) { scanStatus.textContent = text; scanStatus.hidden = !text; }
+
+  scanBtn.addEventListener("click", async () => {
+    status("Scanning…");
+    scanResults.replaceChildren();
+    let data;
+    try {
+      const resp = await fetch("/settings/scan");
+      data = await resp.json();
+      if (!resp.ok) { status(data.error); return; }
+    } catch { status("Scan failed — is the server still running?"); return; }
+    if (!data.found.length) { status("No recognisable services found running in Docker."); return; }
+    status("");
+    for (const s of data.found) {
+      const li = document.createElement("li");
+      const info = document.createElement("div");
+      info.className = "scan-info";
+      const title = document.createElement("span");
+      title.className = "name";
+      title.textContent = `${schemas[s.type].name} — container “${s.name}”`;
+      const note = document.createElement("span");
+      note.className = "type";
+      note.textContent = s.note;
+      info.append(title, note);
+      const use = document.createElement("button");
+      use.className = "btn ghost";
+      use.textContent = "Use this";
+      use.addEventListener("click", () => {
+        select.value = s.type;
+        renderFields();
+        document.querySelector("input[name=name]").value = s.name;
+        for (const [key, value] of Object.entries(s.fields)) {
+          const input = holder.querySelector(`input[name=${key}]`);
+          if (input) input.value = value;
+        }
+        if (s.port) {
+          const url = holder.querySelector("input[name=url]");
+          if (url) url.value = `http://${location.hostname}:${s.port}`;
+        }
+        const firstEmpty = [...holder.querySelectorAll("input")].find((i) => !i.value);
+        document.getElementById("add-h").scrollIntoView({ behavior: "smooth" });
+        (firstEmpty || holder.querySelector("input"))?.focus({ preventScroll: true });
+      });
+      li.append(info, use);
+      scanResults.append(li);
+    }
+  });
 </script>
 {% endblock %}

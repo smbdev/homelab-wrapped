@@ -22,8 +22,9 @@ def test_add_and_remove_service(page, server_url):
     page.fill("#plugin-fields input[name=path]", "/data/export.csv")
     page.get_by_role("button", name="Add & test connection").click()
     page.wait_for_selector(".notice")
-    assert "my-export" in page.locator(".service-list").inner_text()
+    connected = page.get_by_role("region", name="Connected services")
+    assert "my-export" in connected.inner_text()
 
     page.get_by_role("button", name="Remove my-export").click()
     page.wait_for_selector(".notice:not(.error)")
-    assert page.locator(".service-list li").count() == 0
+    assert connected.locator("li").count() == 0
