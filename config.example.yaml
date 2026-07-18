@@ -33,7 +33,7 @@ connectors: {}
   # this-server:
   #   type: docker_stats
   #
-  # Paperless-ngx, via its API (Settings → Django admin → Auth tokens).
+  # Paperless-ngx, via its API (click your username → My Profile → API token).
   # paperless:
   #   type: paperless
   #   url: http://paperless.local:8000
