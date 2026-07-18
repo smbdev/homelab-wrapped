@@ -4,10 +4,27 @@ from __future__ import annotations
 
 import argparse
 import sys
+from datetime import datetime
 
 from wrapped.core.config import load_config
 from wrapped.core.events import EventStore
+from wrapped.core.story import Period, build_story, save_story
 from wrapped.core.sync import sync_all
+from wrapped.facts import plural
+
+
+def _parse_period(args) -> Period:
+    """Turn build-command flags into a :class:`Period` (current year by default)."""
+    if args.month:
+        year, month = args.month.split("-")
+        return Period("month", year=int(year), month=int(month))
+    if args.on_this_day:
+        if args.on_this_day == "today":
+            today = datetime.now()
+            return Period("day", month=today.month, day=today.day)
+        month, day = args.on_this_day.split("-")
+        return Period("day", month=int(month), day=int(day))
+    return Period("year", year=args.year or datetime.now().year)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,13 +40,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default="config.yaml", help="path to config.yaml")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("sync", help="collect new events from all configured connectors")
-    sub.add_parser("build", help="build a recap story (arrives in M2)")
+    build = sub.add_parser("build", help="build and save a recap story")
+    when = build.add_mutually_exclusive_group()
+    when.add_argument("--year", type=int, help="calendar year (default: current year)")
+    when.add_argument("--month", metavar="YYYY-MM", help="calendar month, e.g. 2026-03")
+    when.add_argument(
+        "--on-this-day",
+        nargs="?",
+        const="today",
+        metavar="MM-DD",
+        help="on-this-day page for a calendar day (default: today)",
+    )
     sub.add_parser("serve", help="serve the story player web UI (arrives in M3)")
     purge = sub.add_parser("purge", help="wipe the local event cache")
     purge.add_argument("--source", help="only purge this connector instance")
     args = parser.parse_args(argv)
 
-    if args.command in ("build", "serve"):
+    if args.command == "serve":
         print(f"'{args.command}' is not implemented yet — coming in a later milestone.")
         return 2
 
@@ -55,6 +82,16 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"{name}: {n} new events")
             if not counts:
                 print("No connectors configured — add some to config.yaml.")
+        elif args.command == "build":
+            try:
+                period = _parse_period(args)
+            except ValueError as exc:
+                print(f"Invalid period: {exc}", file=sys.stderr)
+                return 1
+            story = build_story(store, period, config.timezone)
+            path = save_story(config.database.parent / "stories", story)
+            n_cards = plural(len(story["cards"]), "card")
+            print(f"Built '{story['period']['label']}' — {n_cards} → {path}")
         elif args.command == "purge":
             n = store.purge(source=args.source)
             print(f"Purged {n} events.")

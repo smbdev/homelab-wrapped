@@ -71,6 +71,30 @@ def test_missing_config_file(capsys):
     assert "not found" in capsys.readouterr().err
 
 
+def test_build_saves_story(tmp_path, capsys):
+    cfg, db = write_config(tmp_path)
+    main(["--config", str(cfg), "sync"])
+    assert main(["--config", str(cfg), "build", "--year", "2026"]) == 0
+    out = capsys.readouterr().out
+    assert "Your 2026" in out
+    story_file = tmp_path / "stories" / "2026.json"
+    assert story_file.exists()
+
+
+def test_build_month_and_on_this_day(tmp_path):
+    cfg, db = write_config(tmp_path)
+    main(["--config", str(cfg), "sync"])
+    assert main(["--config", str(cfg), "build", "--month", "2026-01"]) == 0
+    assert main(["--config", str(cfg), "build", "--on-this-day", "06-01"]) == 0
+    assert (tmp_path / "stories" / "2026-01.json").exists()
+    assert (tmp_path / "stories" / "day-06-01.json").exists()
+
+
+def test_build_bad_month(tmp_path, capsys):
+    cfg, db = write_config(tmp_path)
+    assert main(["--config", str(cfg), "build", "--month", "march"]) == 1
+    assert "Invalid period" in capsys.readouterr().err
+
+
 def test_stub_commands(capsys):
-    assert main(["build"]) == 2
     assert main(["serve"]) == 2
