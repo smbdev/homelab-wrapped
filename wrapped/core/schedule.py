@@ -52,6 +52,16 @@ def on_this_day_job(config: AppConfig, now: datetime | None = None) -> dict:
     return _run(config, period, email_if=True, now=now)
 
 
+def _add_jobs(scheduler, config: AppConfig) -> None:
+    hour = config.schedule.hour
+    if config.schedule.monthly_recap:
+        scheduler.add_job(
+            monthly_job, "cron", day=1, hour=hour, args=[config], name="monthly-recap"
+        )
+    if config.schedule.on_this_day:
+        scheduler.add_job(on_this_day_job, "cron", hour=hour, args=[config], name="on-this-day")
+
+
 def run_scheduler(config: AppConfig) -> None:
     """Start the blocking scheduler with the jobs enabled in config.
 
@@ -67,12 +77,25 @@ def run_scheduler(config: AppConfig) -> None:
         )
 
     scheduler = BlockingScheduler(timezone=config.timezone)
-    hour = config.schedule.hour
-    if config.schedule.monthly_recap:
-        scheduler.add_job(
-            monthly_job, "cron", day=1, hour=hour, args=[config], name="monthly-recap"
-        )
-    if config.schedule.on_this_day:
-        scheduler.add_job(on_this_day_job, "cron", hour=hour, args=[config], name="on-this-day")
+    _add_jobs(scheduler, config)
     log.info("scheduler running (%s)", ", ".join(str(j.name) for j in scheduler.get_jobs()))
     scheduler.start()
+
+
+def start_background_scheduler(config: AppConfig):
+    """Start scheduled jobs alongside another process (used by ``wrapped serve``).
+
+    Returns:
+        The running ``BackgroundScheduler``, or ``None`` when no jobs are
+        enabled — serving without a scheduler is a perfectly good on-demand
+        mode, so unlike :func:`run_scheduler` this doesn't raise.
+    """
+    if not (config.schedule.monthly_recap or config.schedule.on_this_day):
+        return None
+    from apscheduler.schedulers.background import BackgroundScheduler
+
+    scheduler = BackgroundScheduler(timezone=config.timezone)
+    _add_jobs(scheduler, config)
+    scheduler.start()
+    log.info("background scheduler running (%s)", ", ".join(j.name for j in scheduler.get_jobs()))
+    return scheduler

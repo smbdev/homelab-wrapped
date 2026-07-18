@@ -94,9 +94,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "serve":
             import uvicorn
 
+            from wrapped.core.schedule import start_background_scheduler
             from wrapped.web import create_app
 
             store.close()  # serve reads stories from disk, not the event db
+            scheduler = start_background_scheduler(config)  # None unless jobs enabled
+            if scheduler:
+                print("Scheduler active:", ", ".join(j.name for j in scheduler.get_jobs()))
             app = create_app(config.database.parent / "stories")
             uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
         elif args.command == "schedule":
