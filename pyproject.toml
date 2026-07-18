@@ -47,3 +47,4 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = ["e2e: browser smoke tests (Playwright)"]

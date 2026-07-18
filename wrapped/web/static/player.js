@@ -118,12 +118,14 @@ function heatmap(card) {
     // Start on the Monday of the first week so columns are calendar weeks.
     const start = new Date(first);
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    const localISO = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     for (let d = new Date(start); d <= last; d.setDate(d.getDate() + 1)) {
-      const iso = d.toISOString().slice(0, 10);
+      const iso = localISO(d); // not toISOString(): that shifts to UTC and misses local dates
       const v = card.data[iso] || 0;
       const cell = el("div", "cell");
       if (v > 0) {
-        const level = Math.min(4, 1 + Math.floor((3 * (v - 1)) / max));
+        const level = Math.max(1, Math.ceil((4 * v) / max));
         cell.classList.add(`l${level}`);
         cell.title = `${iso}: ${fmt(v)}`;
       }
@@ -143,7 +145,7 @@ function superlative(card) {
 function intro() {
   const root = el("article", "card intro");
   root.append(el("p", "kicker", "Homelab Wrapped"));
-  root.append(el("p", "display", story.period.label));
+  root.append(el("h1", "display", story.period.label));
   const hint = el("p", "hint-line");
   hint.append("Tap anywhere to begin — or use ");
   hint.append(el("kbd", "key", "←"));
