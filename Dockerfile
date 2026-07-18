@@ -2,7 +2,7 @@
 FROM python:3.13-slim
 
 WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE config.example.yaml ./
 COPY wrapped ./wrapped
 RUN pip install --no-cache-dir .
 

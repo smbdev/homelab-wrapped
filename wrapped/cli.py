@@ -6,7 +6,7 @@ import argparse
 import sys
 from datetime import datetime
 
-from wrapped.core.config import load_config
+from wrapped.core.config import create_starter_config, load_config
 from wrapped.core.events import EventStore
 from wrapped.core.story import Period, build_story, save_story
 from wrapped.core.sync import sync_all
@@ -62,8 +62,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load_config(args.config)
     except FileNotFoundError:
-        print(f"Config file not found: {args.config}", file=sys.stderr)
-        return 1
+        if args.command == "serve":
+            # First run: create a starter config so a fresh Docker volume
+            # boots into a working app the user can then configure.
+            config = create_starter_config(args.config)
+            print(f"Created starter config at {args.config} — edit it to add your services.")
+        else:
+            print(f"Config file not found: {args.config}", file=sys.stderr)
+            return 1
     except ValueError as exc:
         print(f"Invalid config: {exc}", file=sys.stderr)
         return 1

@@ -1,6 +1,6 @@
 [project]
 name = "homelab-wrapped"
-version = "0.1.0"
+version = "0.1.1"
 description = "Self-hosted, privacy-first recap generator for your homelab"
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -37,6 +37,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["wrapped"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"config.example.yaml" = "wrapped/config.example.yaml"
 
 [tool.ruff]
 line-length = 100

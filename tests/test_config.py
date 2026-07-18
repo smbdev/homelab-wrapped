@@ -1,5 +1,6 @@
 """config.yaml parsing and validation."""
 
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -62,3 +63,22 @@ def test_connector_without_type(tmp_path):
 def test_missing_file(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_config(tmp_path / "absent.yaml")
+
+
+def test_create_starter_config(tmp_path):
+    from wrapped.core.config import create_starter_config
+
+    path = tmp_path / "data" / "config.yaml"
+    cfg = create_starter_config(path)
+    assert path.is_file()
+    assert "connectors" in path.read_text()
+    assert cfg.connectors == []  # safe by default: nothing enabled
+    assert cfg.schedule.monthly_recap is False
+    assert cfg.email is None
+    assert load_config(path).connectors == []  # the written file round-trips
+
+
+def test_repo_example_config_is_valid():
+    example = Path(__file__).parent.parent / "config.example.yaml"
+    cfg = load_config(example)
+    assert cfg.connectors == []
