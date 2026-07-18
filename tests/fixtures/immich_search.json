@@ -1,0 +1,43 @@
+{
+  "1": {
+    "assets": {
+      "items": [
+        {
+          "id": "a1",
+          "originalFileName": "IMG_2041.jpg",
+          "fileCreatedAt": "2026-02-14T09:30:00.000Z",
+          "exifInfo": {"city": "Seville"}
+        },
+        {
+          "id": "a2",
+          "originalFileName": "IMG_2042.jpg",
+          "fileCreatedAt": "2026-02-14T09:31:00.000Z",
+          "exifInfo": null
+        },
+        {
+          "id": "a3",
+          "originalFileName": "broken.jpg"
+        },
+        {
+          "id": "a4",
+          "originalFileName": "old.jpg",
+          "fileCreatedAt": "2024-05-01T10:00:00.000Z"
+        }
+      ],
+      "nextPage": "2"
+    }
+  },
+  "2": {
+    "assets": {
+      "items": [
+        {
+          "id": "a5",
+          "originalFileName": "IMG_3001.jpg",
+          "fileCreatedAt": "2026-06-14T12:00:00.000Z",
+          "exifInfo": {"city": null}
+        }
+      ],
+      "nextPage": null
+    }
+  }
+}
