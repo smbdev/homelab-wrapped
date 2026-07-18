@@ -9,9 +9,10 @@ services:
       # Put config.yaml in ./data (see config.example.yaml). The event cache
       # and built stories live alongside it.
       - ./data:/data
-      # Optional: lets the Settings page scan this machine's containers and
-      # prefill the add-service form. Read-only; local only.
-      # - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Lets the Settings page scan this machine's containers and add
+      # recognised services in one click. Read-only, local only — remove
+      # this line if you'd rather add services manually.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount source data your connectors read, e.g.:
       # - /path/to/jellyfin/data:/jellyfin-data:ro
     restart: unless-stopped

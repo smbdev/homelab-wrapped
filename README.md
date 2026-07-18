@@ -21,7 +21,7 @@ Open <http://localhost:8365> — the first visit asks you to create an admin acc
 
 Behind Authelia/Authentik or another reverse proxy that sets `X-Auth-User`? Put `auth: proxy` in `config.yaml` and the sign-in page steps aside.
 
-Scanning reads the Docker socket, so it needs the opt-in mount `-v /var/run/docker.sock:/var/run/docker.sock:ro` added to the command above. It's read-only and local-only — the no-phoning-home promise is unchanged.
+Scanning reads the Docker socket: add `-v /var/run/docker.sock:/var/run/docker.sock:ro` to the command above (the compose file includes it by default). It's read-only and local-only — the no-phoning-home promise is unchanged; drop the mount if you'd rather add services manually.
 
 > Connectors that read files — Jellyfin's database, CSV exports — need that file mounted into the container: add e.g. `-v /path/to/jellyfin/data:/jellyfin-data:ro` to the command above. Pure-API connectors like Immich need nothing extra. Port taken? Change the host side: `-p 9090:8365`.
 
@@ -45,6 +45,7 @@ services:
       - "8365:8365"
     volumes:
       - /opt/wrapped/data:/data   # host path holding config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # for the Settings scan; remove to opt out
     restart: unless-stopped
 ```
 
