@@ -145,7 +145,7 @@ function superlative(card) {
 function intro() {
   const root = el("article", "card intro");
   root.append(el("p", "kicker", "Homelab Wrapped"));
-  root.append(el("p", "display", story.period.label));
+  root.append(el("h1", "display", story.period.label));
   const hint = el("p", "hint-line");
   hint.append("Tap anywhere to begin — or use ");
   hint.append(el("kbd", "key", "←"));

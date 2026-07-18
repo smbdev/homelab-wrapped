@@ -9,6 +9,7 @@
   --ink: oklch(0.96 0.005 36);
   --muted: oklch(0.74 0.01 36);
   --primary: oklch(0.68 0.16 36);
+  --primary-deep: oklch(0.52 0.15 36);  /* filled controls: white text passes 4.5:1 here */
   --accent: oklch(0.85 0.12 85);
 
   --space-xs: 0.5rem;
@@ -412,7 +413,7 @@ button {
 }
 
 .btn {
-  background: var(--primary);
+  background: var(--primary-deep);
   color: oklch(0.98 0.005 36);
   border: none;
   border-radius: 10px;
