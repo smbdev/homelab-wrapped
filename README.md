@@ -11,16 +11,15 @@ Your homelab already knows what you watched, photographed, and collected this ye
 
 ## Quick start
 
-```bash
-mkdir wrapped && cd wrapped
-curl -LO https://raw.githubusercontent.com/smbdev/homelab-wrapped/main/docker-compose.yml
-docker compose up -d              # first start creates ./data/config.yaml
+One command:
 
-# edit ./data/config.yaml — point it at your services — then:
-docker compose restart wrapped    # syncs and builds your recap on startup
+```bash
+docker run -d --name homelab-wrapped -p 8000:8000 -v wrapped-data:/data --restart unless-stopped ghcr.io/smbdev/homelab-wrapped
 ```
 
-Open <http://localhost:8000> and press play on your year.
+Open <http://localhost:8000> → **Settings** → add your services in the form (it tests each connection as you add it). Your first recap syncs and builds itself — no config files, no restarts.
+
+> Connectors that read files — Jellyfin's database, CSV exports — need that file mounted into the container: add e.g. `-v /path/to/jellyfin/data:/jellyfin-data:ro` to the command above. Pure-API connectors like Immich need nothing extra.
 
 ## Installation
 
@@ -28,7 +27,7 @@ Open <http://localhost:8000> and press play on your year.
 
 ### Docker (recommended)
 
-See the quick start above. One container, one `/data` volume (config, cache, stories). With `schedule:` enabled in config, the same container also builds monthly recaps and On This Day pages automatically.
+The quick start above is all of it: one container, one `/data` volume (config, cache, stories). Prefer compose? [docker-compose.yml](docker-compose.yml) is the same thing with room for connector mounts. With `schedule:` enabled (in Settings-managed `config.yaml`), the running container also builds monthly recaps and On This Day pages automatically.
 
 ### Portainer, Dockge, Komodo & friends
 
@@ -45,7 +44,7 @@ services:
     restart: unless-stopped
 ```
 
-First start creates a commented `config.yaml` in the mounted directory. Edit it to point at your services (adding read-only mounts to the stack for whatever your connectors read, e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`), then restart the container — it syncs and builds your recap automatically on startup.
+Deploy, open port 8000, and add your services on the **Settings** page — same zero-config flow as the quick start. Add read-only mounts to the stack for file-reading connectors (e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`).
 
 ### pip
 
@@ -64,7 +63,7 @@ uv run wrapped sync && uv run wrapped build && uv run wrapped serve
 
 ## Configuration
 
-One file: `config.yaml` — see [config.example.yaml](config.example.yaml) for every option with comments. The short version:
+Connectors are managed from the **Settings** page in the app. Under the hood everything lives in one file, `config.yaml` — edit it directly for the options without UI yet (timezone, scheduling, email digests); see [config.example.yaml](config.example.yaml) for every option with comments. The short version:
 
 ```yaml
 timezone: Europe/London
