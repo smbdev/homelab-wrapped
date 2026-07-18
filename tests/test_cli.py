@@ -94,7 +94,3 @@ def test_build_bad_month(tmp_path, capsys):
     cfg, db = write_config(tmp_path)
     assert main(["--config", str(cfg), "build", "--month", "march"]) == 1
     assert "Invalid period" in capsys.readouterr().err
-
-
-def test_stub_commands(capsys):
-    assert main(["serve"]) == 2
