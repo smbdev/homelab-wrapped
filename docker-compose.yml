@@ -4,7 +4,7 @@ services:
     # build: .   # uncomment to build from a source checkout instead
     container_name: homelab-wrapped
     ports:
-      - "8000:8000"
+      - "8365:8365"
     volumes:
       # Put config.yaml in ./data (see config.example.yaml). The event cache
       # and built stories live alongside it.

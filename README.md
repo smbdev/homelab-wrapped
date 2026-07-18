@@ -14,12 +14,12 @@ Your homelab already knows what you watched, photographed, and collected this ye
 One command:
 
 ```bash
-docker run -d --name homelab-wrapped -p 8000:8000 -v wrapped-data:/data --restart unless-stopped ghcr.io/smbdev/homelab-wrapped
+docker run -d --name homelab-wrapped -p 8365:8365 -v wrapped-data:/data --restart unless-stopped ghcr.io/smbdev/homelab-wrapped
 ```
 
-Open <http://localhost:8000> → **Settings** → add your services in the form (it tests each connection as you add it). Your first recap syncs and builds itself — no config files, no restarts.
+Open <http://localhost:8365> → **Settings** → add your services in the form (it tests each connection as you add it). Your first recap syncs and builds itself — no config files, no restarts.
 
-> Connectors that read files — Jellyfin's database, CSV exports — need that file mounted into the container: add e.g. `-v /path/to/jellyfin/data:/jellyfin-data:ro` to the command above. Pure-API connectors like Immich need nothing extra.
+> Connectors that read files — Jellyfin's database, CSV exports — need that file mounted into the container: add e.g. `-v /path/to/jellyfin/data:/jellyfin-data:ro` to the command above. Pure-API connectors like Immich need nothing extra. Port taken? Change the host side: `-p 9090:8365`.
 
 ## Installation
 
@@ -38,13 +38,13 @@ services:
   wrapped:
     image: ghcr.io/smbdev/homelab-wrapped:latest
     ports:
-      - "8000:8000"
+      - "8365:8365"
     volumes:
       - /opt/wrapped/data:/data   # host path holding config.yaml
     restart: unless-stopped
 ```
 
-Deploy, open port 8000, and add your services on the **Settings** page — same zero-config flow as the quick start. Add read-only mounts to the stack for file-reading connectors (e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`).
+Deploy, open port 8365, and add your services on the **Settings** page — same zero-config flow as the quick start. Add read-only mounts to the stack for file-reading connectors (e.g. `- /path/to/jellyfin/data:/jellyfin-data:ro`).
 
 ### pip
 
