@@ -1,0 +1,92 @@
+"""Playwright smoke-suite fixtures: a real server on a random local port.
+
+The stories directory contains a rich story (all card templates, including a
+``private`` card to exercise the redaction path) and an empty one.
+"""
+
+import json
+import threading
+import time
+
+import pytest
+import uvicorn
+
+from wrapped.web import create_app
+
+RICH_STORY = {
+    "version": 1,
+    "period": {"type": "year", "id": "2026", "label": "Your 2026"},
+    "generated_at": "2027-01-01T09:00:00+00:00",
+    "cards": [
+        {
+            "template": "big_number",
+            "fact": "media.total_hours",
+            "private": False,
+            "value": 412,
+            "headline": "412 hours watched",
+            "sub": "That's 17 full days of telly",
+        },
+        {
+            "template": "top_list",
+            "fact": "media.top_shows",
+            "private": False,
+            "headline": "Your top shows",
+            "items": [
+                {"label": "The Bear", "value": "31 eps"},
+                {"label": "Severance", "value": "18 eps"},
+            ],
+        },
+        {
+            "template": "superlative",
+            "fact": "photos.busiest_day",
+            "private": True,
+            "value": 132,
+            "headline": "132 photos in one day",
+            "sub": "Your camera's big day out: 14 June",
+        },
+        {
+            "template": "streak",
+            "fact": "activity.streak",
+            "private": False,
+            "value": 23,
+            "headline": "A 23-day streak",
+            "sub": "Every single day from 1 September",
+        },
+        {
+            "template": "heatmap",
+            "fact": "activity.by_day",
+            "private": False,
+            "headline": "Your year, day by day",
+            "data": {"2026-01-05": 3, "2026-01-06": 1, "2026-06-14": 12},
+        },
+    ],
+}
+
+EMPTY_STORY = {
+    "version": 1,
+    "period": {"type": "month", "id": "2026-02", "label": "February 2026"},
+    "generated_at": "2026-03-01T09:00:00+00:00",
+    "cards": [],
+}
+
+
+@pytest.fixture(scope="session")
+def server_url(tmp_path_factory):
+    stories = tmp_path_factory.mktemp("stories")
+    (stories / "2026.json").write_text(json.dumps(RICH_STORY))
+    (stories / "2026-02.json").write_text(json.dumps(EMPTY_STORY))
+
+    config = uvicorn.Config(create_app(stories), host="127.0.0.1", port=0, log_level="error")
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    for _ in range(100):
+        if server.started:
+            break
+        time.sleep(0.05)
+    else:
+        raise RuntimeError("test server failed to start")
+    port = server.servers[0].sockets[0].getsockname()[1]
+    yield f"http://127.0.0.1:{port}"
+    server.should_exit = True
+    thread.join(timeout=5)
