@@ -6,15 +6,16 @@ const W = 1080;
 const H = 1350; // 4:5 portrait, share-friendly
 
 const COLORS = {
-  bg: "#0a0a0a",
-  surface: "#151515",
-  ink: "#fafafa",
-  muted: "#9ca3af",
-  primary: "#ea2b2b",
-  accent: "#fafafa",
+  bg: "#050506",
+  ink: "#ffffff",
+  muted: "rgba(255,255,255,0.62)",
+  faint: "rgba(255,255,255,0.45)",
+  primary: "#e63232",
+  accent: "#ffbcb2",
 };
 
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONT = "'Space Grotesk', system-ui, sans-serif";
+const MONO = "'JetBrains Mono', ui-monospace, monospace";
 const EXPORTABLE = new Set(["big_number", "superlative", "streak", "top_list", "comparison"]);
 
 export function isExportable(card) {
@@ -57,7 +58,7 @@ function drawCentered(ctx, text, y, font, color, lineHeight = 1.2) {
 function drawChip(ctx, fact, y) {
   const label = (fact || "").split(".")[0].replaceAll("_", " ").toUpperCase();
   if (!label) return;
-  ctx.font = `600 26px ${FONT}`;
+  ctx.font = `600 26px ${MONO}`;
   ctx.letterSpacing = "6px";
   const tw = ctx.measureText(label).width;
   const pad = 36;
@@ -91,14 +92,22 @@ export function renderCardPNG(card, periodLabel) {
 
   // red glow behind the content
   const glow = ctx.createRadialGradient(W / 2, H * 0.42, 80, W / 2, H * 0.42, 720);
-  glow.addColorStop(0, "rgba(234, 43, 43, 0.16)");
-  glow.addColorStop(1, "rgba(234, 43, 43, 0)");
+  glow.addColorStop(0, "rgba(230, 50, 50, 0.18)");
+  glow.addColorStop(1, "rgba(230, 50, 50, 0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
 
+  // the shell's dot matrix, one static frame
+  for (let y = 11; y < H; y += 26) {
+    for (let x = 11; x < W; x += 26) {
+      ctx.fillStyle = "rgba(255,255,255,0.045)";
+      ctx.fillRect(x, y, 2, 2);
+    }
+  }
+
   // film grain — felt, not seen
-  for (let i = 0; i < 2800; i++) {
-    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.045})`;
+  for (let i = 0; i < 2200; i++) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.04})`;
     ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
   }
 
@@ -112,7 +121,7 @@ export function renderCardPNG(card, periodLabel) {
   drawChip(ctx, card.fact, 160);
 
   ctx.fillStyle = COLORS.muted;
-  ctx.font = `600 34px ${FONT}`;
+  ctx.font = `500 34px ${MONO}`;
   ctx.textAlign = "center";
   ctx.fillText(periodLabel, W / 2, 250);
 
@@ -121,7 +130,7 @@ export function renderCardPNG(card, periodLabel) {
     let y = 480;
     (card.items || []).slice(0, 5).forEach((item, i) => {
       // surface row with hairline, like the on-screen list
-      ctx.fillStyle = i === 0 ? "rgba(234, 43, 43, 0.1)" : "rgba(255, 255, 255, 0.04)";
+      ctx.fillStyle = i === 0 ? "rgba(230, 50, 50, 0.12)" : "rgba(255, 255, 255, 0.04)";
       ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -190,9 +199,9 @@ export function renderCardPNG(card, periodLabel) {
       grad.addColorStop(0, "#ffffff");
       grad.addColorStop(1, "#9ca3af");
     } else {
-      grad.addColorStop(0, "#ff6b6b");
-      grad.addColorStop(0.55, COLORS.primary);
-      grad.addColorStop(1, "#a81a1a");
+      grad.addColorStop(0, "#ffffff");
+      grad.addColorStop(0.55, "#ffb0a4");
+      grad.addColorStop(1, "#e51010");
     }
     ctx.fillStyle = grad;
     ctx.fillText(value, W / 2, 640);
@@ -206,7 +215,7 @@ export function renderCardPNG(card, periodLabel) {
   }
 
   // footer wordmark
-  ctx.font = `700 30px ${FONT}`;
+  ctx.font = `700 30px ${MONO}`;
   ctx.letterSpacing = "8px";
   ctx.textAlign = "center";
   ctx.fillStyle = COLORS.muted;
@@ -220,7 +229,8 @@ export function renderCardPNG(card, periodLabel) {
   return canvas;
 }
 
-export function downloadCardPNG(card, periodLabel) {
+export async function downloadCardPNG(card, periodLabel) {
+  await document.fonts.ready; // Space Grotesk / JetBrains Mono must be loaded before canvas text
   const canvas = renderCardPNG(card, periodLabel);
   canvas.toBlob((blob) => {
     const a = document.createElement("a");

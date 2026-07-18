@@ -65,7 +65,7 @@ def test_api_index(client):
 
 
 def test_static_assets_served(client):
-    for asset in ("style.css", "player.js", "export.js"):
+    for asset in ("hw.css", "story.css", "player.js", "export.js", "canvas-bg.js"):
         assert client.get(f"/static/{asset}").status_code == 200
 
 

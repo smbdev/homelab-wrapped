@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ story.period.label }} — Homelab Wrapped{% endblock %}
-{% block styles %}<link rel="stylesheet" href="/static/style.css">{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="/static/hw.css">
+<link rel="stylesheet" href="/static/story.css">
+{% endblock %}
 {% block body %}
 <div id="player" class="player">
+  <canvas id="story-bg" aria-hidden="true"></canvas>
   <div class="progress" role="group" aria-label="Story progress"></div>
+  <p class="boot-line" aria-hidden="true"></p>
   <main class="stage" aria-live="polite"></main>
   <div class="nav-buttons">
     <button class="nav-btn nav-prev" aria-label="Previous card">‹</button>

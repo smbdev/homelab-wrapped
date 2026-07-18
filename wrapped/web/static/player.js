@@ -1,6 +1,7 @@
 /* Story player: renders story-spec JSON as swipeable full-screen cards.
    Vanilla ES module, no dependencies, no build step. */
 
+import { dotMatrix, particles, streamViz, typeLine } from "./canvas-bg.js";
 import { downloadCardPNG, isExportable } from "./export.js";
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -47,6 +48,38 @@ function withEyebrow(root, card) {
   return root;
 }
 
+/* Satellite mini-cards around a big number, derived from the OTHER public
+   cards in this story — populates the space with real facts, zero backend. */
+function satellites(card) {
+  const sats = [];
+  for (const c of story.cards) {
+    if (c === card || c.private) continue;
+    if (c.template === "top_list" && c.items?.length) {
+      sats.push({ k: "top of the list", v: c.items[0].label, s: c.items[0].value });
+    } else if (c.template === "streak" && c.value) {
+      sats.push({ k: "streak", v: `${fmt(c.value)} days`, s: c.sub || "" });
+    } else if (c.template === "comparison" && c.items?.length) {
+      const best = [...c.items].sort(
+        (a, b) => (Number(b.raw ?? b.value) || 0) - (Number(a.raw ?? a.value) || 0)
+      )[0];
+      sats.push({ k: "heavyweight", v: best.label, s: String(best.value) });
+    } else if (c.template === "heatmap" && c.data) {
+      const [day, n] = Object.entries(c.data).sort((a, b) => b[1] - a[1])[0] || [];
+      if (day) sats.push({ k: "busiest day", v: day, s: `${fmt(n)} events` });
+    }
+  }
+  if (!sats.length) return null;
+  const wrap = el("div", "sats");
+  wrap.setAttribute("aria-hidden", "true");
+  for (const s of sats.slice(0, 4)) {
+    const node = el("div", "sat");
+    node.append(el("div", "k", s.k), el("div", "v", s.v));
+    if (s.s) node.append(el("div", "s", s.s));
+    wrap.append(node);
+  }
+  return wrap;
+}
+
 /* "412 hours watched" + value 412 → label "hours watched"; else keep whole headline. */
 function splitHeadline(card) {
   const prefix = fmt(card.value) + " ";
@@ -66,6 +99,8 @@ function bigNumber(card) {
   root.append(el("h2", null, label ?? card.headline));
   if (card.sub) root.append(el("p", "sub", card.sub));
   countUp(display, card.value);
+  const sats = satellites(card);
+  if (sats) root.append(sats);
   return withEyebrow(root, card);
 }
 
@@ -83,10 +118,28 @@ function topList(card) {
   const root = el("article", "card top-list");
   root.append(el("h2", null, card.headline));
   const list = el("ol", "toplist");
-  (card.items || []).forEach((item, i) => {
+  const items = card.items || [];
+  // bars scale to the numeric prefix of each value ("31 eps" → 31); if the
+  // values aren't numeric, rows render without bars rather than fake ones
+  const nums = items.map((it) => parseFloat(String(it.raw ?? it.value)) || 0);
+  const max = Math.max(...nums, 0);
+  items.forEach((item, i) => {
     const li = el("li");
     li.style.setProperty("--i", i);
-    li.append(el("span", "label", item.label), el("span", "value", item.value));
+    const top = el("div", "row-top");
+    top.append(
+      el("span", "rank", String(i + 1).padStart(2, "0")),
+      el("span", "label", item.label),
+      el("span", "value", item.value)
+    );
+    li.append(top);
+    if (max > 0 && nums[i] > 0) {
+      const track = el("div", "track");
+      const fill = el("div", "fill");
+      fill.style.width = `${Math.max((nums[i] / max) * 100, 4)}%`;
+      track.append(fill);
+      li.append(track);
+    }
     list.append(li);
   });
   root.append(list);
@@ -275,7 +328,34 @@ deck.push({ template: "outro" });
 
 const stage = document.querySelector(".stage");
 const progress = document.querySelector(".progress");
+const bg = document.getElementById("story-bg");
+const bootLine = document.querySelector(".boot-line");
 let index = -1;
+let bgMode = null;
+
+const BG = { intro: dotMatrix, quiet: dotMatrix, comparison: streamViz };
+
+function chapterChrome(card) {
+  if (bg) {
+    const mode = BG[card.template] ? card.template : "particles";
+    if (mode !== bgMode) {
+      bgMode = mode;
+      (BG[card.template] || particles)(bg);
+    }
+  }
+  if (bootLine) {
+    const line =
+      card.template === "intro"
+        ? "booting recap.engine ......... ok"
+        : card.template === "outro"
+          ? "render complete — that's a wrap"
+          : card.fact
+            ? `read ${card.fact} ....... ok`
+            : "";
+    bootLine.replaceChildren();
+    if (line) typeLine(bootLine, [line]);
+  }
+}
 
 const segs = deck.map((_, i) => {
   const seg = el("button", "seg");
@@ -296,6 +376,9 @@ function go(i) {
   const card = RENDERERS[deck[i].template](deck[i]);
   card.classList.add("card-enter");
   stage.append(card);
+  chapterChrome(deck[i]);
+  // keep the chapter in the URL so refresh/back land on the same card
+  history.replaceState(null, "", i ? `?c=${i}` : location.pathname);
 }
 
 const next = () => go(Math.min(index + 1, deck.length - 1));
@@ -332,4 +415,5 @@ stage.addEventListener("pointerup", (e) => {
   else if (dx > 30) prev();
 });
 
-go(0);
+const fromUrl = parseInt(new URLSearchParams(location.search).get("c"), 10);
+go(Number.isInteger(fromUrl) && fromUrl > 0 && fromUrl < deck.length ? fromUrl : 0);
