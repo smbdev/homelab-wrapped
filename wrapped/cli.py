@@ -114,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
                 # so "edit config, restart, open browser" is the whole flow.
                 threading.Thread(target=refresh_current_year, args=(config,), daemon=True).start()
                 print("Syncing and building this year's recap in the background…")
-            app = create_app(config.database.parent / "stories")
+            app = create_app(config.database.parent / "stories", config_path=args.config)
             uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
         elif args.command == "schedule":
             import logging
