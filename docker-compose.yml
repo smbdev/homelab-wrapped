@@ -1,6 +1,7 @@
 services:
   wrapped:
-    build: .
+    image: ghcr.io/smbdev/homelab-wrapped:latest
+    # build: .   # uncomment to build from a source checkout instead
     container_name: homelab-wrapped
     ports:
       - "8000:8000"
