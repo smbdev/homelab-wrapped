@@ -81,7 +81,7 @@ def test_login_and_logout(signed_in, tmp_path, config_path):
 
 
 def test_static_and_api_behaviour_unauthenticated(client):
-    assert client.get("/static/style.css").status_code == 200
+    assert client.get("/static/hw.css").status_code == 200
     assert client.get("/api/stories").status_code == 401
     assert client.get("/api/stories").json()["error"] == "not signed in"
 

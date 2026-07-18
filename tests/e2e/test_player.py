@@ -94,7 +94,7 @@ def test_private_card_excluded_from_export(page, server_url):
     rows = page.locator(".export-list li")
     texts = [rows.nth(i).inner_text() for i in range(rows.count())]
     private_row = next(t for t in texts if "132 photos" in t)
-    assert "off the record" in private_row
+    assert "off the record" in private_row.lower()  # chip renders uppercase via CSS
     # and it has no download button
     assert page.locator(".export-list li.private button").count() == 0
 
