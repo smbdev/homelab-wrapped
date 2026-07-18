@@ -32,6 +32,12 @@ CONTAINERS = [
         "Ports": [],
         "Mounts": [],
     },
+    {
+        "Names": ["/paperless"],
+        "Image": "ghcr.io/paperless-ngx/paperless-ngx:latest",
+        "Ports": [{"PrivatePort": 8000, "PublicPort": 8010}],
+        "Mounts": [],
+    },
 ]
 
 
@@ -43,7 +49,13 @@ def fake_docker(monkeypatch):
 def test_scan_recognises_known_services(fake_docker):
     result = discover.scan()
     # docker_stats ("this server") always leads; postgres has no connector
-    assert [s["type"] for s in result["found"]] == ["docker_stats", "jellyfin", "immich", "pihole"]
+    assert [s["type"] for s in result["found"]] == [
+        "docker_stats",
+        "jellyfin",
+        "immich",
+        "pihole",
+        "paperless",
+    ]
     assert result["unknown"] == ["immich_postgres"]
 
 

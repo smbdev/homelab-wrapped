@@ -112,6 +112,18 @@ def scan() -> dict[str, Any]:
                     "note": "Paste an API key from Immich → Account Settings → API Keys.",
                 }
             )
+        elif "paperless" in image.lower():
+            port = _public_port(c, 8000)
+            suggestions.append(
+                {
+                    "type": "paperless",
+                    "name": "paperless",
+                    "fields": {},
+                    "port": port,
+                    "ready": port is not None,
+                    "note": "Paste an API token from Paperless → Django admin → Auth tokens.",
+                }
+            )
         elif "pihole" in image.lower() or name.lower() == "pihole":
             in_container = f"{_PIHOLE_MOUNT_TARGET}/pihole-FTL.db"
             host_etc = _mount_source(c, "/etc/pihole")
