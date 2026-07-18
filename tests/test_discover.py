@@ -42,9 +42,9 @@ def fake_docker(monkeypatch):
 
 def test_scan_recognises_known_services(fake_docker):
     result = discover.scan()
-    # docker_stats ("this server") always leads; postgres/pihole have no connector
-    assert [s["type"] for s in result["found"]] == ["docker_stats", "jellyfin", "immich"]
-    assert result["unknown"] == ["immich_postgres", "pihole"]
+    # docker_stats ("this server") always leads; postgres has no connector
+    assert [s["type"] for s in result["found"]] == ["docker_stats", "jellyfin", "immich", "pihole"]
+    assert result["unknown"] == ["immich_postgres"]
 
 
 def test_scan_this_server_is_one_click(fake_docker):

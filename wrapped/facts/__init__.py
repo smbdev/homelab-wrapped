@@ -81,7 +81,7 @@ def _photos_busiest_day(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
-_INFRA_KINDS = ("net.", "system.")  # samples, not human activity
+_INFRA_KINDS = ("net.", "system.", "dns.")  # samples/aggregates, not human activity
 
 
 def _activity_streak(ctx: FactContext) -> dict[str, Any] | None:
@@ -161,6 +161,31 @@ def _network_by_service(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
+def _dns_blocked_total(ctx: FactContext) -> dict[str, Any] | None:
+    _, blocked = ctx.store.totals(ctx.since, ctx.until, kind="dns.blocked")
+    if blocked < 1000:
+        return None  # a recap brag needs at least four digits
+    n = int(blocked)
+    card: dict[str, Any] = {
+        "value": n,
+        "headline": f"{n:,} ads and trackers blocked",
+    }
+    _, total = ctx.store.totals(ctx.since, ctx.until, kind="dns.query")
+    if total:
+        card["sub"] = f"{blocked / total:.0%} of all DNS queries, swallowed by Pi-hole"
+    return card
+
+
+def _dns_top_blocked(ctx: FactContext) -> dict[str, Any] | None:
+    top = ctx.store.top(ctx.since, ctx.until, kind="dns.blocked_domain", by="value")
+    if not top:
+        return None
+    return {
+        "headline": "Most-blocked domains",
+        "items": [{"label": label, "value": f"{int(v):,}×"} for label, _, v in top],
+    }
+
+
 def _system_containers(ctx: FactContext) -> dict[str, Any] | None:
     latest = None
     for e in ctx.store.events(ctx.since, ctx.until, kind="system.containers"):
@@ -194,5 +219,7 @@ FACTS: list[Fact] = [
     Fact("activity.by_day", "heatmap", _activity_heatmap),
     Fact("network.total", "big_number", _network_total),
     Fact("network.by_service", "comparison", _network_by_service),
+    Fact("dns.blocked_total", "big_number", _dns_blocked_total),
+    Fact("dns.top_blocked", "top_list", _dns_top_blocked),
     Fact("system.containers", "big_number", _system_containers),
 ]

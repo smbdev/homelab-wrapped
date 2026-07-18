@@ -19,6 +19,7 @@ SOCKET_PATH = "/var/run/docker.sock"
 # ponytail: discovery signatures live here while there are two of them;
 # move onto the connector classes when the list grows.
 _JELLYFIN_MOUNT_TARGET = "/jellyfin-data"
+_PIHOLE_MOUNT_TARGET = "/pihole-data"
 
 
 def docker_available() -> bool:
@@ -37,9 +38,10 @@ def _public_port(container: dict, private: int) -> int | None:
     return None
 
 
-def _config_mount(container: dict) -> str | None:
+def _mount_source(container: dict, destination: str) -> str | None:
+    """Host path mounted at ``destination`` inside the scanned container."""
     for m in container.get("Mounts") or []:
-        if m.get("Destination", "").rstrip("/") == "/config" and m.get("Source"):
+        if m.get("Destination", "").rstrip("/") == destination and m.get("Source"):
             return m["Source"]
     return None
 
@@ -71,7 +73,7 @@ def scan() -> dict[str, Any]:
 
         if "jellyfin" in image.lower() or name.lower() == "jellyfin":
             in_container = f"{_JELLYFIN_MOUNT_TARGET}/data/playback_reporting.db"
-            host_config = _config_mount(c)
+            host_config = _mount_source(c, "/config")
             if Path(in_container).exists():
                 note = "Found its database — ready to add."
                 ready = True
@@ -108,6 +110,35 @@ def scan() -> dict[str, Any]:
                     "port": port,
                     "ready": port is not None,
                     "note": "Paste an API key from Immich → Account Settings → API Keys.",
+                }
+            )
+        elif "pihole" in image.lower() or name.lower() == "pihole":
+            in_container = f"{_PIHOLE_MOUNT_TARGET}/pihole-FTL.db"
+            host_etc = _mount_source(c, "/etc/pihole")
+            if Path(in_container).exists():
+                note = "Found its query database — ready to add."
+                ready = True
+            elif host_etc:
+                note = (
+                    f"Mount Pi-hole's /etc/pihole into this container first: add "
+                    f"-v {host_etc}:{_PIHOLE_MOUNT_TARGET}:ro to Homelab Wrapped, "
+                    "then add this service."
+                )
+                ready = False
+            else:
+                note = (
+                    "Mount Pi-hole's /etc/pihole folder into this container as "
+                    f"{_PIHOLE_MOUNT_TARGET} (read-only), then add this service."
+                )
+                ready = False
+            suggestions.append(
+                {
+                    "type": "pihole",
+                    "name": name,
+                    "fields": {"db_path": in_container},
+                    "port": None,
+                    "ready": ready,
+                    "note": note,
                 }
             )
         elif "homelab-wrapped" not in image:  # don't report ourselves as a mystery

@@ -33,6 +33,11 @@ connectors: {}
   # this-server:
   #   type: docker_stats
   #
+  # Pi-hole, via its FTL query database (mount /etc/pihole read-only).
+  # pihole:
+  #   type: pihole
+  #   db_path: /pihole-data/pihole-FTL.db
+  #
   # Immich, via its API (create a key in Account Settings → API Keys).
   # immich:
   #   type: immich
