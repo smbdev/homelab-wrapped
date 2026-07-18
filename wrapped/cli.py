@@ -54,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     serve = sub.add_parser("serve", help="serve the story player web UI")
     serve.add_argument("--host", default="127.0.0.1", help="bind address (default: local only)")
     serve.add_argument("--port", type=int, default=8000)
+    sub.add_parser("schedule", help="run the scheduler (monthly recaps, on-this-day)")
     purge = sub.add_parser("purge", help="wipe the local event cache")
     purge.add_argument("--source", help="only purge this connector instance")
     args = parser.parse_args(argv)
@@ -98,6 +99,18 @@ def main(argv: list[str] | None = None) -> int:
             store.close()  # serve reads stories from disk, not the event db
             app = create_app(config.database.parent / "stories")
             uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+        elif args.command == "schedule":
+            import logging
+
+            from wrapped.core.schedule import run_scheduler
+
+            logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+            store.close()  # jobs open their own store per run
+            try:
+                run_scheduler(config)
+            except ValueError as exc:
+                print(f"Cannot start scheduler: {exc}", file=sys.stderr)
+                return 1
         elif args.command == "purge":
             n = store.purge(source=args.source)
             print(f"Purged {n} events.")
