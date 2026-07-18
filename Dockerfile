@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir .
 # Everything the app touches lives under /data: config.yaml, events.db, stories/.
 WORKDIR /data
 VOLUME /data
-EXPOSE 8000
+EXPOSE 8365
 
 ENTRYPOINT ["wrapped"]
 # Serves the UI; also runs the scheduler when jobs are enabled in config.yaml.

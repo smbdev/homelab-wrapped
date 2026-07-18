@@ -53,7 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     serve = sub.add_parser("serve", help="serve the story player web UI")
     serve.add_argument("--host", default="127.0.0.1", help="bind address (default: local only)")
-    serve.add_argument("--port", type=int, default=8000)
+    # 8365 — a year of days; 8000 collides with Portainer's edge agent and friends
+    serve.add_argument("--port", type=int, default=8365)
     sub.add_parser("schedule", help="run the scheduler (monthly recaps, on-this-day)")
     purge = sub.add_parser("purge", help="wipe the local event cache")
     purge.add_argument("--source", help="only purge this connector instance")
@@ -114,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
                 # so "edit config, restart, open browser" is the whole flow.
                 threading.Thread(target=refresh_current_year, args=(config,), daemon=True).start()
                 print("Syncing and building this year's recap in the background…")
-            app = create_app(config.database.parent / "stories")
+            app = create_app(config.database.parent / "stories", config_path=args.config)
             uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
         elif args.command == "schedule":
             import logging
