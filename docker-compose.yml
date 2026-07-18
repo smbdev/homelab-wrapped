@@ -1,0 +1,13 @@
+services:
+  wrapped:
+    build: .
+    container_name: homelab-wrapped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Put config.yaml in ./data (see config.example.yaml). The event cache
+      # and built stories live alongside it.
+      - ./data:/data
+      # Mount source data your connectors read, e.g.:
+      # - /path/to/jellyfin/data:/jellyfin-data:ro
+    restart: unless-stopped
