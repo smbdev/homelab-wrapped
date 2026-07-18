@@ -2,7 +2,7 @@
 
 Your homelab already knows what you watched, photographed, and collected this year. Homelab Wrapped turns that into a beautiful, swipeable year-in-review — like the streaming services make, except it runs on your own hardware, reads your own services, and never sends a byte anywhere. Yearly recaps, monthly recaps, and a daily "On This Day" page.
 
-![A Homelab Wrapped story card: 163 hours watched](docs/screenshot.png)
+![The Homelab Wrapped story player playing a yearly recap](docs/img/wrapped.gif)
 
 - **Privacy-first, provable.** Zero outbound network calls — enforced by a test fixture that fails the suite if any code opens an unexpected socket. Optional extras like email use *your* SMTP server.
 - **Read-only.** Connectors use the least-privileged access each service supports. Nothing is ever written to your services.
