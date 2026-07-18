@@ -17,7 +17,9 @@ One command:
 docker run -d --name homelab-wrapped -p 8365:8365 -v wrapped-data:/data --restart unless-stopped ghcr.io/smbdev/homelab-wrapped
 ```
 
-Open <http://localhost:8365> → **Settings** → add your services in the form (it tests each connection as you add it). Your first recap syncs and builds itself — no config files, no restarts.
+Open <http://localhost:8365> → **Settings** → **Scan this server** finds services running in Docker and prefills the form (or add them manually — each add tests the connection). Your first recap syncs and builds itself — no config files, no restarts.
+
+Scanning reads the Docker socket, so it needs the opt-in mount `-v /var/run/docker.sock:/var/run/docker.sock:ro` added to the command above. It's read-only and local-only — the no-phoning-home promise is unchanged.
 
 > Connectors that read files — Jellyfin's database, CSV exports — need that file mounted into the container: add e.g. `-v /path/to/jellyfin/data:/jellyfin-data:ro` to the command above. Pure-API connectors like Immich need nothing extra. Port taken? Change the host side: `-p 9090:8365`.
 

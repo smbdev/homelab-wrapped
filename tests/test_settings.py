@@ -95,6 +95,42 @@ def test_duplicate_name_rejected(client, config_path):
     assert len(load_config(config_path).connectors) == 1
 
 
+def test_settings_page_has_scan_button(client):
+    assert "scan-btn" in client.get("/settings").text
+
+
+def test_scan_route_returns_suggestions(client, monkeypatch):
+    import wrapped.web.discover as discover
+
+    monkeypatch.setattr(discover, "docker_available", lambda: True)
+    monkeypatch.setattr(
+        discover,
+        "scan",
+        lambda: [
+            {
+                "type": "immich",
+                "name": "immich",
+                "fields": {},
+                "port": 2283,
+                "ready": True,
+                "note": "n",
+            }
+        ],
+    )
+    r = client.get("/settings/scan")
+    assert r.status_code == 200
+    assert r.json()["found"][0]["type"] == "immich"
+
+
+def test_scan_route_explains_missing_socket(client, monkeypatch):
+    import wrapped.web.discover as discover
+
+    monkeypatch.setattr(discover, "docker_available", lambda: False)
+    r = client.get("/settings/scan")
+    assert r.status_code == 503
+    assert "docker.sock" in r.json()["error"]
+
+
 def test_remove_connector(client, config_path):
     client.post(
         "/settings/connectors",

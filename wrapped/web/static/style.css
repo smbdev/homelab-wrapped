@@ -186,6 +186,22 @@ button {
 
 .btn.danger { color: oklch(0.78 0.14 25); }
 
+.scan-box {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.scan-box .service-list { width: 100%; }
+.scan-box .service-list li { background: var(--surface-2); }
+.scan-info { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.scan-info .type { white-space: normal; }
+.scan-status { margin: 0; }
+
 .add-form {
   background: var(--surface);
   border-radius: 12px;

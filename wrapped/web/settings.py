@@ -13,7 +13,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from wrapped.connectors import all_connectors
 from wrapped.connectors.base import missing_required
@@ -86,6 +86,24 @@ def add_settings_routes(app: FastAPI, templates, config_path: Path) -> None:
         if result.ok:
             return _back(f"Added “{name}” — {result.message} Building your recap now…")
         return _back(f"Added “{name}”, but its connection test failed: {result.message}", ok=False)
+
+    @app.get("/settings/scan")
+    def scan_services():
+        from wrapped.web import discover
+
+        if not discover.docker_available():
+            return JSONResponse(
+                {
+                    "error": "Scanning needs read-only access to the Docker socket. Add "
+                    "-v /var/run/docker.sock:/var/run/docker.sock:ro to this container "
+                    "and restart, or add services manually below."
+                },
+                status_code=503,
+            )
+        try:
+            return {"found": discover.scan()}
+        except OSError as exc:
+            return JSONResponse({"error": f"Could not read Docker: {exc}"}, status_code=502)
 
     @app.post("/settings/connectors/{name}/delete")
     def delete(name: str):
