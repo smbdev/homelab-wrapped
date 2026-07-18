@@ -90,6 +90,20 @@ def test_build_month_and_on_this_day(tmp_path):
     assert (tmp_path / "stories" / "day-06-01.json").exists()
 
 
+def test_serve_wires_settings_page(tmp_path, monkeypatch):
+    # Regression: serve must pass the config path into create_app, or the
+    # Settings page silently 404s in deployments.
+    import uvicorn
+
+    captured = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: captured.update(app=app, **kw))
+    cfg, db = write_config(tmp_path)
+    assert main(["--config", str(cfg), "serve", "--port", "1234"]) == 0
+    routes = {getattr(r, "path", None) for r in captured["app"].routes}
+    assert "/settings" in routes
+    assert captured["port"] == 1234
+
+
 def test_build_bad_month(tmp_path, capsys):
     cfg, db = write_config(tmp_path)
     assert main(["--config", str(cfg), "build", "--month", "march"]) == 1
