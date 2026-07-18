@@ -201,6 +201,20 @@ class EventStore:
         ).fetchone()
         return row[0], row[1]
 
+    def first_event_ts(self) -> datetime | None:
+        """Return the timestamp of the oldest stored event, if any."""
+        row = self._db.execute("SELECT MIN(ts) FROM events").fetchone()
+        return datetime.fromisoformat(row[0]) if row[0] else None
+
+    def count_by_kind(self, since: datetime, until: datetime) -> dict[str, int]:
+        """Return event counts per kind for a window."""
+        clauses, params = self._window(since, until, None, None)
+        rows = self._db.execute(
+            f"SELECT kind, COUNT(*) FROM events WHERE {clauses} GROUP BY kind",  # noqa: S608
+            params,
+        )
+        return dict(rows)
+
     def top(
         self,
         since: datetime,
@@ -241,14 +255,17 @@ class EventStore:
         tz: Any,
         kind: str | None = None,
         source: str | None = None,
+        count: bool = False,
     ) -> dict[date, float]:
-        """Sum event values per local calendar day (heatmaps, streaks, busiest day).
+        """Aggregate events per local calendar day (heatmaps, streaks, busiest day).
 
         Grouping happens in Python because day boundaries depend on the
         user's timezone, which SQLite can't resolve.
 
         Args:
             tz: The user's tzinfo; days are bucketed in this zone.
+            count: Count events per day instead of summing their values —
+                use when mixing kinds whose values have different units.
         """
         # ponytail: O(n) over window rows — fine at homelab scale, push to SQL if it isn't
         days: dict[date, float] = {}
@@ -259,7 +276,7 @@ class EventStore:
         )
         for ts, value in rows:
             d = datetime.fromisoformat(ts).astimezone(tz).date()
-            days[d] = days.get(d, 0.0) + value
+            days[d] = days.get(d, 0.0) + (1 if count else value)
         return days
 
     @staticmethod
