@@ -77,7 +77,9 @@ _MANAGED_HEADER = (
 
 
 def _rewrite(path: str | Path, raw: dict[str, Any]) -> None:
-    Path(path).write_text(_MANAGED_HEADER + yaml.safe_dump(raw, sort_keys=False))
+    path = Path(path)
+    path.write_text(_MANAGED_HEADER + yaml.safe_dump(raw, sort_keys=False))
+    path.chmod(0o600)  # holds connector API keys — owner-only, like auth.json
 
 
 def add_connector(path: str | Path, name: str, type_: str, cfg: dict[str, Any]) -> None:
@@ -135,6 +137,7 @@ def create_starter_config(path: str | Path) -> AppConfig:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
+    path.chmod(0o600)  # will hold connector API keys — owner-only from birth
     return load_config(path)
 
 
