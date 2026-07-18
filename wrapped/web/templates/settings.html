@@ -50,12 +50,18 @@
         <ul class="hw-rows" style="list-style:none; margin:0; padding:0">
           {% for c in configured %}
           <li class="hw-row">
-            <span class="hw-status" aria-hidden="true"></span>
+            <span class="hw-status{% if not c.ok %} hw-status--warn{% endif %}" aria-hidden="true"></span>
             <span class="who">
               <span class="n">{{ c.name }}</span><br>
-              <span class="s">{{ plugins[c.type].name if c.type in plugins else c.type }}</span>
+              <span class="s">{{ plugins[c.type].name if c.type in plugins else c.type }} · {{ c.detail }}</span>
             </span>
-            <form method="post" action="/settings/connectors/{{ c.name }}/delete" style="margin:0">
+            {% if not c.ok %}
+            <form method="post" action="/settings/connectors/{{ c.name }}/retest" style="margin:0">
+              <button class="hw-btn hw-btn--ghost" aria-label="Retest {{ c.name }}">Retest</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/settings/connectors/{{ c.name }}/delete" style="margin:0"
+                  data-confirm="Remove “{{ c.name }}”? Its credentials are deleted from config.yaml — recaps already built are kept.">
               <button class="hw-btn hw-btn--danger" aria-label="Remove {{ c.name }}">Remove</button>
             </form>
           </li>
@@ -73,8 +79,30 @@
         <p class="hw-term" id="scan-status" role="status" hidden></p>
         <ul class="hw-rows" id="scan-results" style="list-style:none; margin:.8rem 0 0; padding:0"></ul>
       </section>
+
+      <section class="hw-panel" aria-labelledby="maint-h">
+        <h2 id="maint-h">Maintenance</h2>
+        <div style="display:flex; gap:.6rem; flex-wrap:wrap">
+          <form method="post" action="/settings/rebuild" style="margin:0">
+            <button class="hw-btn hw-btn--ghost" type="submit">Rebuild recap now</button>
+          </form>
+          <form method="post" action="/settings/purge" style="margin:0"
+                data-confirm="Purge every cached event? Built recaps are kept; the next sync re-reads your services from scratch.">
+            <button class="hw-btn hw-btn--danger" type="submit">Purge event data</button>
+          </form>
+        </div>
+        <p class="hw-hint">Recaps rebuild automatically on a schedule — this just skips the wait.</p>
+      </section>
     </div>
   </div>
+
+  <dialog id="confirm" style="background: var(--hw-bg-alt); color: var(--hw-text); border: 1px solid var(--hw-border-strong); border-radius: var(--hw-r-card); box-shadow: var(--hw-shadow-modal); padding: 1.6rem; max-width: 26rem">
+    <p id="confirm-text" style="margin: 0 0 1.2rem; font-size: .95rem"></p>
+    <div style="display:flex; gap:.6rem; justify-content:flex-end">
+      <button class="hw-btn hw-btn--ghost" id="confirm-no" type="button">Cancel</button>
+      <button class="hw-btn hw-btn--danger" id="confirm-yes" type="button">Yes, do it</button>
+    </div>
+  </dialog>
 
   {% if request.app.state.auth_mode != "off" %}
   <div id="pane-account" role="tabpanel" aria-labelledby="tab-account" class="hw-grid" hidden>
@@ -177,11 +205,90 @@
   }
   selectType(Object.keys(schemas)[0]);
 
-  // Scan: ask the server for recognised Docker containers, prefill the form.
+  // Destructive forms route through the confirm dialog.
+  const dialog = document.getElementById("confirm");
+  const confirmText = document.getElementById("confirm-text");
+  let armedForm = null;
+  document.querySelectorAll("form[data-confirm]").forEach((f) => {
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+      armedForm = f;
+      confirmText.textContent = f.dataset.confirm;
+      dialog.showModal();
+    });
+  });
+  document.getElementById("confirm-no").addEventListener("click", () => dialog.close());
+  document.getElementById("confirm-yes").addEventListener("click", () => {
+    dialog.close();
+    armedForm?.submit();
+  });
+
+  // Scan: ask the server for recognised Docker containers. Ready services
+  // add with one click; ones missing a credential expand an inline field.
   const scanBtn = document.getElementById("scan-btn");
   const scanStatus = document.getElementById("scan-status");
   const scanResults = document.getElementById("scan-results");
   function status(text) { scanStatus.textContent = text; scanStatus.hidden = !text; }
+
+  function scannedFields(s) {
+    const fields = { ...s.fields };
+    if (s.port) fields.url = `http://${location.hostname}:${s.port}`;
+    return fields;
+  }
+
+  async function scanAdd(s, extra, onError) {
+    const body = { type: s.type, name: s.name, fields: { ...scannedFields(s), ...extra } };
+    let data;
+    try {
+      const resp = await fetch("/settings/scan/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      data = await resp.json();
+    } catch { onError("connection lost — is the server still running?"); return; }
+    if (data.ok) location.href = `/settings?msg=${encodeURIComponent(`Added “${s.name}” — ${data.message} Building your recap now…`)}`;
+    else onError(data.error);
+  }
+
+  function credentialStep(li, s, addBtn) {
+    // expand the row: masked input(s) for what the scan can't know
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "flex-basis:100%; display:flex; flex-direction:column; gap:.5rem; margin-top:.6rem";
+    const inputs = {};
+    for (const key of s.missing) {
+      const input = document.createElement("input");
+      input.className = "hw-input";
+      input.name = key;
+      input.placeholder = s.descriptions[key] || key.replaceAll("_", " ");
+      if (key.includes("key") || key.includes("password")) input.type = "password";
+      inputs[key] = input;
+      wrap.append(input);
+    }
+    const err = document.createElement("p");
+    err.className = "hw-term";
+    err.hidden = true;
+    const go = document.createElement("button");
+    go.className = "hw-btn";
+    go.textContent = "Connect & test";
+    go.addEventListener("click", async () => {
+      go.disabled = true;
+      go.textContent = "testing…";
+      err.hidden = true;
+      const extra = Object.fromEntries(Object.entries(inputs).map(([k, i]) => [k, i.value]));
+      await scanAdd(s, extra, (message) => {
+        err.textContent = message;
+        err.hidden = false;
+        go.disabled = false;
+        go.textContent = "Connect & test";
+      });
+    });
+    wrap.append(go, err);
+    li.style.flexWrap = "wrap";
+    li.append(wrap);
+    addBtn.remove();
+    (Object.values(inputs)[0] || go).focus();
+  }
 
   scanBtn.addEventListener("click", async () => {
     status("inspecting docker.sock …");
@@ -193,7 +300,7 @@
       if (!resp.ok) { status(data.error); return; }
     } catch { status("scan failed — is the server still running?"); return; }
     if (!data.found.length) { status("no recognisable services found running in Docker."); return; }
-    status("");
+    status(`found ${data.found.length} recognised service${data.found.length > 1 ? "s" : ""}`);
     for (const s of data.found) {
       const li = document.createElement("li");
       li.className = "hw-row";
@@ -206,25 +313,39 @@
       note.className = "s";
       note.textContent = s.note;
       info.append(title, document.createElement("br"), note);
-      const use = document.createElement("button");
-      use.className = "hw-btn";
-      use.textContent = "Use this";
-      use.addEventListener("click", () => {
-        selectType(s.type);
-        document.querySelector("input[name=name]").value = s.name;
-        for (const [key, value] of Object.entries(s.fields)) {
-          const input = holder.querySelector(`input[name=${key}]`);
-          if (input) input.value = value;
-        }
-        if (s.port) {
-          const url = holder.querySelector("input[name=url]");
-          if (url) url.value = `http://${location.hostname}:${s.port}`;
-        }
-        const firstEmpty = [...holder.querySelectorAll("input")].find((i) => !i.value);
-        document.getElementById("add-form").scrollIntoView({ behavior: "smooth" });
-        (firstEmpty || holder.querySelector("input"))?.focus({ preventScroll: true });
-      });
-      li.append(info, use);
+      li.append(info);
+      if (s.missing.length || s.ready) {
+        const add = document.createElement("button");
+        add.className = "hw-btn";
+        add.textContent = "Add";
+        add.addEventListener("click", () => {
+          if (s.missing.length) { credentialStep(li, s, add); return; }
+          add.disabled = true;
+          add.textContent = "adding…";
+          scanAdd(s, {}, (message) => {
+            add.disabled = false;
+            add.textContent = "Add";
+            status(message);
+          });
+        });
+        li.append(add);
+      } else {
+        // not addable yet (e.g. Jellyfin db not mounted) — prefill the form
+        const use = document.createElement("button");
+        use.className = "hw-btn hw-btn--ghost";
+        use.textContent = "Use this";
+        use.addEventListener("click", () => {
+          selectType(s.type);
+          document.querySelector("input[name=name]").value = s.name;
+          for (const [key, value] of Object.entries(scannedFields(s))) {
+            const input = holder.querySelector(`input[name=${key}]`);
+            if (input) input.value = value;
+          }
+          document.getElementById("add-form").scrollIntoView({ behavior: "smooth" });
+          holder.querySelector("input")?.focus({ preventScroll: true });
+        });
+        li.append(use);
+      }
       scanResults.append(li);
     }
   });

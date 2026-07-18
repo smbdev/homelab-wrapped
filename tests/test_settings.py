@@ -1,5 +1,6 @@
 """Settings page: add/remove connectors from the browser."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -144,3 +145,85 @@ def test_remove_connector(client, config_path):
     r = client.post("/settings/connectors/media/delete", follow_redirects=True)
     assert "Removed" in r.text
     assert load_config(config_path).connectors == []
+
+
+def test_scan_add_tests_before_writing_config(client, config_path):
+    r = client.post(
+        "/settings/scan/add",
+        json={"type": "generic_csv", "name": "found", "fields": {"path": "/nope.csv"}},
+    )
+    assert r.json()["ok"] is False
+    assert "not found" in r.json()["error"].lower()
+    assert load_config(config_path).connectors == []  # bad test → nothing saved
+
+
+def test_scan_add_happy_path_writes_config_and_status(client, config_path):
+    r = client.post(
+        "/settings/scan/add",
+        json={
+            "type": "generic_csv",
+            "name": "found",
+            "fields": {"path": str(FIXTURES / "events.csv")},
+        },
+    )
+    assert r.json()["ok"] is True
+    (entry,) = load_config(config_path).connectors
+    assert entry.name == "found"
+    status = json.loads((config_path.parent / "status.json").read_text())
+    assert status["found"]["ok"] is True
+
+
+def test_retest_updates_status_and_row(client, config_path, tmp_path):
+    path = tmp_path / "data.csv"
+    path.write_text("ts,kind\n2026-01-01T10:00:00,play\n")
+    client.post(
+        "/settings/connectors",
+        data={"name": "flaky", "type": "generic_csv", "path": str(path)},
+    )
+    path.unlink()  # break it
+    r = client.post("/settings/connectors/flaky/retest", follow_redirects=True)
+    assert "still failing" in r.text
+    assert "hw-status--warn" in r.text  # amber dot on the row
+    assert "Retest" in r.text
+
+
+def test_retest_unknown_connector(client):
+    r = client.post("/settings/connectors/ghost/retest", follow_redirects=True)
+    assert "No connector called" in r.text
+
+
+def test_remove_drops_status(client, config_path):
+    client.post(
+        "/settings/scan/add",
+        json={
+            "type": "generic_csv",
+            "name": "gone",
+            "fields": {"path": str(FIXTURES / "events.csv")},
+        },
+    )
+    client.post("/settings/connectors/gone/delete")
+    status = json.loads((config_path.parent / "status.json").read_text())
+    assert "gone" not in status
+
+
+def test_rebuild_kicks_background_refresh(client):
+    r = client.post("/settings/rebuild", follow_redirects=True)
+    assert "Rebuilding" in r.text
+
+
+def test_purge_wipes_events(client, config_path):
+    from datetime import UTC, datetime
+
+    from wrapped.core.events import Event, EventStore
+
+    db = load_config(config_path).database
+    store = EventStore(db)
+    store.add_events([Event(source="x", kind="media.play", ts=datetime(2026, 1, 1, tzinfo=UTC))])
+    store.close()
+    r = client.post("/settings/purge", follow_redirects=True)
+    assert "Purged 1" in r.text
+    store = EventStore(db)
+    assert (
+        list(store.events(datetime(2000, 1, 1, tzinfo=UTC), datetime(2100, 1, 1, tzinfo=UTC))) == []
+    )
+    store.close()

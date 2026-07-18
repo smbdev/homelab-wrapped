@@ -26,5 +26,6 @@ def test_add_and_remove_service(page, server_url):
     assert "my-export" in connected.inner_text()
 
     page.get_by_role("button", name="Remove my-export").click()
+    page.get_by_role("button", name="Yes, do it").click()  # confirm dialog gates removal
     page.wait_for_selector(".hw-notice:not(.hw-notice--err)")
     assert connected.locator("li").count() == 0
