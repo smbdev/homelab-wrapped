@@ -121,7 +121,7 @@ def scan() -> dict[str, Any]:
                     "fields": {},
                     "port": port,
                     "ready": port is not None,
-                    "note": "Paste an API token from Paperless → Django admin → Auth tokens.",
+                    "note": "Paste an API token from Paperless → your username → My Profile.",
                 }
             )
         elif "pihole" in image.lower() or name.lower() == "pihole":

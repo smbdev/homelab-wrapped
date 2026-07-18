@@ -39,7 +39,7 @@ class PaperlessConnector:
     name = "Paperless-ngx"
     schema = [
         ConfigField("url", "Base URL of Paperless-ngx, e.g. http://paperless.local:8000"),
-        ConfigField("api_token", "Paperless API token (Settings → Django admin → Auth tokens)"),
+        ConfigField("api_token", "Paperless API token (click your username → My Profile)"),
     ]
 
     def test(self, cfg: Config) -> ConnectionResult:
