@@ -11,6 +11,7 @@ import {
 } from "./export.js";
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ORBIT_S = 90; // seconds per satellite lap around the hero
 const story = JSON.parse(document.getElementById("story-data").textContent);
 
 /* The full-report summary needs at least two stats to summarise; day
@@ -70,26 +71,36 @@ function satellites(card) {
     if ((c.fact || "").split(".")[0] !== cat) continue;
     if (c.template === "top_list" && c.items?.length) {
       sats.push({ k: "top of the list", v: c.items[0].label, s: c.items[0].value });
+      if (c.items[1]) sats.push({ k: "runner-up", v: c.items[1].label, s: c.items[1].value });
     } else if (c.template === "streak" && c.value) {
       sats.push({ k: "streak", v: `${fmt(c.value)} days`, s: c.sub || "" });
     } else if (c.template === "comparison" && c.items?.length) {
-      const best = [...c.items].sort(
+      const ranked = [...c.items].sort(
         (a, b) => (Number(b.raw ?? b.value) || 0) - (Number(a.raw ?? a.value) || 0)
-      )[0];
-      sats.push({ k: "heavyweight", v: best.label, s: String(best.value) });
+      );
+      sats.push({ k: "heavyweight", v: ranked[0].label, s: String(ranked[0].value) });
+      if (ranked[1]) sats.push({ k: "runner-up", v: ranked[1].label, s: String(ranked[1].value) });
     } else if (c.template === "heatmap" && c.data) {
       const [day, n] = Object.entries(c.data).sort((a, b) => b[1] - a[1])[0] || [];
       if (day) sats.push({ k: "busiest day", v: day, s: `${fmt(n)} events` });
     }
   }
   if (!sats.length) return null;
-  // Two at most, on opposite corners; diagonal alternates slide to slide.
+  // Two at most; corner classes are the static fallback, and on wide screens
+  // with motion allowed they slowly orbit the hero on an ellipse instead
+  // (evenly phased via negative delays into the shared orbit keyframes).
   const bigs = story.cards.filter((c) => c.template === "big_number" && !c.private);
   const corners = bigs.indexOf(card) % 2 ? ["sat-tr", "sat-bl"] : ["sat-tl", "sat-br"];
+  const orbit = !REDUCED && CSS.supports("offset-path", "ellipse(40% 38%)");
+  const chosen = sats.slice(0, 2);
   const wrap = el("div", "sats");
   wrap.setAttribute("aria-hidden", "true");
-  sats.slice(0, 2).forEach((s, i) => {
+  chosen.forEach((s, i) => {
     const node = el("div", `sat ${corners[i]}`);
+    if (orbit) {
+      node.classList.add("sat--orbit");
+      node.style.animationDelay = `${250 + i * 100}ms, ${-(i / chosen.length) * ORBIT_S}s`;
+    }
     node.append(el("div", "k", s.k), el("div", "v", s.v));
     if (s.s) node.append(el("div", "s", s.s));
     wrap.append(node);
