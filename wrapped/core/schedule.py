@@ -24,7 +24,9 @@ def _run(config: AppConfig, period: Period, email_if: bool, now: datetime) -> di
     config.database.parent.mkdir(parents=True, exist_ok=True)
     store = EventStore(config.database)
     try:
-        sync_all(config, store)
+        report = sync_all(config, store)
+        for name, err in report.errors.items():
+            log.warning("%s didn't sync (%s) — recap built without it", name, err)
         story = build_story(store, period, config.timezone, now=now)
     finally:
         store.close()

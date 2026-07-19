@@ -192,7 +192,33 @@ def test_refresh_never_raises_on_broken_connector(tmp_path):
     )
     from wrapped.core.config import load_config
 
-    assert refresh_current_year(load_config(cfg)) is None  # logged, not raised
+    # The broken connector is isolated, so the refresh still produces a story
+    # (empty here — it was the only source) rather than failing outright.
+    story = refresh_current_year(load_config(cfg))
+    assert story is not None
+    assert story["cards"] == []
+
+
+def test_refresh_keeps_good_connectors_when_one_breaks(tmp_path):
+    from wrapped.core.config import load_config
+    from wrapped.core.schedule import refresh_current_year
+
+    csv = tmp_path / "good.csv"
+    csv.write_text(
+        "ts,kind,entity,entity_group,value\n"
+        "2026-03-04T20:00:00+00:00,media.play,E1,The Bear,50\n"
+        "2026-03-05T20:00:00+00:00,media.play,E2,The Bear,50\n"
+    )
+    cfg = tmp_path / "config.yaml"
+    cfg.write_text(
+        f"database: {tmp_path}/e.db\nconnectors:\n"
+        f"  good:\n    type: generic_csv\n    path: {csv}\n"
+        "  bad:\n    type: generic_csv\n    path: /nope/absent.csv\n"
+    )
+
+    story = refresh_current_year(load_config(cfg))
+    assert story is not None
+    assert story["cards"], "the healthy connector's data should still make cards"
 
 
 def test_background_scheduler_none_without_jobs(tmp_path):
