@@ -1,3 +1,5 @@
+![Homelab Wrapped — one red beacon in a dark room](docs/img/readme-hero-1280x400.png)
+
 # Homelab Wrapped
 
 Your homelab already knows what you watched, photographed, and collected this year. Homelab Wrapped turns that into a beautiful, swipeable year-in-review — like the streaming services make, except it runs on your own hardware, reads your own services, and never sends a byte anywhere. Yearly recaps, monthly recaps, and a daily "On This Day" page.
