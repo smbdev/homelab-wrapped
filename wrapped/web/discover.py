@@ -133,8 +133,8 @@ def scan() -> dict[str, Any]:
                     "fields": {},
                     "port": port,
                     "ready": port is not None,
-                    "note": "Paste your login and an app password from Nextcloud → "
-                    "Settings → Security → Devices & sessions.",
+                    "note": "Paste your login and an app password — create one in "
+                    "Nextcloud under Personal settings → Security → Devices & sessions.",
                 }
             )
         elif "pihole" in image.lower() or name.lower() == "pihole":
