@@ -11,7 +11,13 @@ from wrapped.facts import FactContext, _network_by_service, _network_total, _sys
 UNTIL = datetime(2026, 6, 1, tzinfo=UTC)
 
 CONTAINERS = [
-    {"Id": "aaa", "Names": ["/jellyfin"]},
+    # compose-managed: the service label wins over the generated name
+    {
+        "Id": "aaa",
+        "Names": ["/jellyfin-jellyfin-1"],
+        "Labels": {"com.docker.compose.service": "jellyfin"},
+    },
+    # plain `docker run --name immich`: no labels, name is the fallback
     {"Id": "bbb", "Names": ["/immich"]},
 ]
 STATS = {
@@ -43,7 +49,7 @@ def test_collect_emits_one_sample_per_container_plus_count(fake_docker):
     kinds = [e.kind for e in events]
     assert kinds == ["net.sample", "net.sample", "system.containers"]
     jf = events[0]
-    assert jf.entity == "jellyfin" and jf.value == 3000 and jf.meta == {"rx": 1000, "tx": 2000}
+    assert jf.entity == "Jellyfin" and jf.value == 3000 and jf.meta == {"rx": 1000, "tx": 2000}
     assert events[1].value == 110  # both interfaces summed
     assert events[2].value == 2
 
@@ -58,7 +64,7 @@ def test_vanished_container_does_not_kill_collect(fake_docker, monkeypatch):
 
     monkeypatch.setattr(ds, "docker_get", flaky)
     events = list(ds.CONNECTOR.collect({}, UNTIL, UNTIL))
-    assert [e.entity for e in events if e.kind == "net.sample"] == ["immich"]
+    assert [e.entity for e in events if e.kind == "net.sample"] == ["Immich"]
 
 
 def _store_with_samples(samples):

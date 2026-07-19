@@ -48,6 +48,16 @@ def docker_get(path: str, socket_path: str = DEFAULT_SOCKET) -> Any:
         conn.close()
 
 
+def service_name(container: dict) -> str:
+    """Human service name: the compose service label ("caddy") beats the
+    generated container name ("caddy-caddy-1"); prettified for cards."""
+    labels = container.get("Labels") or {}
+    raw = labels.get("com.docker.compose.service") or (container.get("Names") or ["/unknown"])[
+        0
+    ].lstrip("/")
+    return raw.replace("_", " ").title()
+
+
 def _net_totals(stats: dict) -> tuple[int, int]:
     rx = tx = 0
     for iface in (stats.get("networks") or {}).values():
@@ -96,7 +106,7 @@ class DockerStatsConnector:
         path = self._socket(cfg)
         containers = docker_get("/containers/json", path)
         for c in containers:
-            name = (c.get("Names") or ["/unknown"])[0].lstrip("/")
+            name = service_name(c)
             try:
                 stats = docker_get(f"/containers/{c['Id']}/stats?stream=false&one-shot=true", path)
             except OSError:
