@@ -41,11 +41,24 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
-function drawCentered(ctx, text, y, font, color, lineHeight = 1.2) {
+/* Truncate with an ellipsis until the text MEASURES within maxWidth —
+   character counts lie, glyph widths don't. */
+function ellipsize(ctx, text, maxWidth) {
+  let s = String(text);
+  if (ctx.measureText(s).width <= maxWidth) return s;
+  while (s.length > 1 && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1);
+  return s.trimEnd() + "…";
+}
+
+function drawCentered(ctx, text, y, font, color, lineHeight = 1.2, maxLines = 3) {
   ctx.font = font;
   ctx.fillStyle = color;
   ctx.textAlign = "center";
-  const lines = wrapText(ctx, text, W - 160);
+  let lines = wrapText(ctx, text, W - 160);
+  if (lines.length > maxLines) {
+    lines = lines.slice(0, maxLines);
+    lines[maxLines - 1] = ellipsize(ctx, lines[maxLines - 1] + "…", W - 160);
+  }
   const size = parseInt(font, 10);
   for (const line of lines) {
     ctx.fillText(line, W / 2, y);
@@ -56,10 +69,11 @@ function drawCentered(ctx, text, y, font, color, lineHeight = 1.2) {
 
 /* Category chip at the top: "media.total_hours" → red dot + "MEDIA" pill. */
 function drawChip(ctx, fact, y) {
-  const label = (fact || "").split(".")[0].replaceAll("_", " ").toUpperCase();
+  let label = (fact || "").split(".")[0].replaceAll("_", " ").toUpperCase();
   if (!label) return;
   ctx.font = `600 26px ${MONO}`;
   ctx.letterSpacing = "6px";
+  label = ellipsize(ctx, label, W - 300);
   const tw = ctx.measureText(label).width;
   const pad = 36;
   const dot = 12;
@@ -138,15 +152,16 @@ export function renderCardPNG(card, periodLabel) {
       ctx.fill();
       ctx.stroke();
       const baseline = y + 62;
+      // measure the value first; the label only gets what's left of the row
+      ctx.font = `400 36px ${FONT}`;
+      const valueW = ctx.measureText(String(item.value)).width;
       ctx.textAlign = "left";
       ctx.font = `800 44px ${FONT}`;
       ctx.fillStyle = COLORS.primary;
       ctx.fillText(String(i + 1), 150, baseline);
       ctx.font = `600 42px ${FONT}`;
       ctx.fillStyle = COLORS.ink;
-      const label =
-        item.label.length > 26 ? item.label.slice(0, 25) + "…" : item.label;
-      ctx.fillText(label, 220, baseline);
+      ctx.fillText(ellipsize(ctx, item.label, W - 150 - valueW - 30 - 220), 220, baseline);
       ctx.textAlign = "right";
       ctx.font = `400 36px ${FONT}`;
       ctx.fillStyle = i === 0 ? COLORS.accent : COLORS.muted;
@@ -159,10 +174,11 @@ export function renderCardPNG(card, periodLabel) {
     const max = Math.max(...items.map((i) => Number(i.raw ?? i.value) || 0), 1);
     let y = 520;
     for (const [i, item] of items.entries()) {
-      ctx.textAlign = "left";
       ctx.font = `600 40px ${FONT}`;
+      const valueW = ctx.measureText(String(item.value)).width;
+      ctx.textAlign = "left";
       ctx.fillStyle = COLORS.ink;
-      ctx.fillText(item.label, 140, y);
+      ctx.fillText(ellipsize(ctx, item.label, W - 280 - valueW - 30), 140, y);
       ctx.textAlign = "right";
       ctx.fillStyle = COLORS.muted;
       ctx.fillText(String(item.value), W - 140, y);
@@ -179,12 +195,12 @@ export function renderCardPNG(card, periodLabel) {
       y += 160;
     }
   } else {
-    // big_number / superlative / streak: one huge value
+    // big_number / superlative / streak: one huge value, shrunk to fit
     const value = fmt(card.value);
     let size = 280;
     ctx.font = `800 ${size}px ${FONT}`;
-    if (ctx.measureText(value).width > W - 220) {
-      size = 180;
+    while (size > 90 && ctx.measureText(value).width > W - 220) {
+      size -= 20;
       ctx.font = `800 ${size}px ${FONT}`;
     }
     ctx.textAlign = "center";
@@ -211,7 +227,7 @@ export function renderCardPNG(card, periodLabel) {
       ? card.headline.slice(prefix.length)
       : card.headline;
     let y = drawCentered(ctx, label, 790, `700 64px ${FONT}`, COLORS.ink);
-    if (card.sub) drawCentered(ctx, card.sub, y + 40, `400 44px ${FONT}`, COLORS.muted);
+    if (card.sub) drawCentered(ctx, card.sub, y + 40, `400 44px ${FONT}`, COLORS.muted, 1.2, 2);
   }
 
   // footer wordmark
@@ -366,7 +382,11 @@ export function renderSummaryPNG(story) {
   ctx.fillStyle = hg;
   ctx.fillText("in numbers", padX, 402);
 
-  // one rounded stat box; the value shrinks until it fits its box
+  /* One rounded stat box. Layout contract, measured — never assumed:
+     label pinned to the top, sub pinned to the bottom, and the value
+     shrinks until its MEASURED ink box (ascent + descent, so glyphs
+     like "y" count) fits the band between them. Overlap is impossible
+     by construction, whatever future connectors put in a card. */
   const stat = (x, y, w, h, cell, big, grad) => {
     ctx.fillStyle = "rgba(255,255,255,0.05)";
     ctx.beginPath();
@@ -378,18 +398,22 @@ export function renderSummaryPNG(story) {
     ctx.fillStyle = COLORS.accent;
     ctx.font = `600 18px ${MONO}`;
     ctx.letterSpacing = "2px";
-    const label = cell.label.toUpperCase();
-    ctx.fillText(label.length > 34 ? label.slice(0, 33) + "…" : label, x + 30, y + 50);
+    ctx.fillText(ellipsize(ctx, cell.label.toUpperCase(), w - 60), x + 30, y + 50);
     ctx.letterSpacing = "0px";
+    const bandTop = y + 66; // below the label
+    const subTop = cell.sub ? y + h - 34 - 22 : y + h - 24; // above the sub line
     let size = big;
-    ctx.font = `700 ${size}px ${FONT}`;
-    while (size > 26 && ctx.measureText(cell.value).width > w - 60) {
-      size -= 6;
+    let m;
+    for (;;) {
       ctx.font = `700 ${size}px ${FONT}`;
+      m = ctx.measureText(cell.value);
+      const fitsW = m.width <= w - 60;
+      const fitsH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent <= subTop - bandTop - 6;
+      if ((fitsW && fitsH) || size <= 24) break;
+      size -= 4;
     }
-    // the hero's huge digits anchor to the box bottom so they can never
-    // run into the sub line; small cells hang off the label instead
-    const baseline = grad ? y + h - 84 : y + 50 + size;
+    const value = ellipsize(ctx, cell.value, w - 60); // last resort at the 24px floor
+    const baseline = subTop - 6 - m.actualBoundingBoxDescent;
     if (grad) {
       const vg = ctx.createLinearGradient(0, baseline - size, 0, baseline);
       vg.addColorStop(0, "#ffffff");
@@ -399,12 +423,11 @@ export function renderSummaryPNG(story) {
     } else {
       ctx.fillStyle = cell.accent ? "#ff7a5a" : COLORS.ink;
     }
-    ctx.fillText(cell.value, x + 30, baseline);
+    ctx.fillText(value, x + 30, baseline);
     if (cell.sub) {
       ctx.fillStyle = COLORS.muted;
       ctx.font = `400 22px ${MONO}`;
-      const sub = cell.sub.length > Math.floor(w / 14) ? cell.sub.slice(0, Math.floor(w / 14) - 1) + "…" : cell.sub;
-      ctx.fillText(sub, x + 30, y + h - 34);
+      ctx.fillText(ellipsize(ctx, cell.sub, w - 60), x + 30, y + h - 34);
     }
   };
 
