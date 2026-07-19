@@ -77,6 +77,15 @@
     </div>
     {% endif %}
   </nav>
+
+  {% if archive %}
+  <section class="hw-archive hw-rise hw-rise-4" aria-label="Earlier recaps">
+    <span class="hw-kick">Earlier recaps</span>
+    {% for s in archive %}
+    <a href="/story/{{ s.id }}">{{ s.label }}</a>
+    {% endfor %}
+  </section>
+  {% endif %}
   {% else %}
   <section class="hw-hero hw-rise hw-rise-1">
     <p class="hw-kick"><span class="hw-dot">●</span> First run</p>

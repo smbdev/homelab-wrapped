@@ -61,6 +61,8 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
             except (OSError, json.JSONDecodeError):
                 continue  # a corrupt file shouldn't take down the index
             cards = story.get("cards", [])
+            if not cards:
+                continue  # a chapterless story (quiet day) isn't a recap
             entries.append(
                 {
                     "id": period_id,
@@ -110,13 +112,18 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
 
     def hub_slots(stories: list[dict]) -> dict:
         """The hub's three bottom cards: featured recap + latest monthly +
-        latest on-this-day; a missing kind renders as a greyed placeholder."""
+        latest on-this-day; a missing kind renders as a greyed placeholder.
+        Everything the slots don't show goes to the archive pill strip."""
         featured = stories[0] if stories else None
         rest = [s for s in stories if s is not featured]
+        monthly = next((s for s in rest if s["kind"] == "monthly"), None)
+        otd = next((s for s in rest if s["kind"] == "on this day"), None)
+        shown = (featured, monthly, otd)
         return {
             "featured": featured,
-            "monthly": next((s for s in rest if s["kind"] == "monthly"), None),
-            "otd": next((s for s in rest if s["kind"] == "on this day"), None),
+            "monthly": monthly,
+            "otd": otd,
+            "archive": [s for s in stories if s not in shown],
         }
 
     has_settings = config_path is not None
