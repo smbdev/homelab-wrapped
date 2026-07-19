@@ -58,12 +58,16 @@ function withEyebrow(root, card) {
   return root;
 }
 
-/* Satellite mini-cards around a big number, derived from the OTHER public
-   cards in this story — populates the space with real facts, zero backend. */
+/* Satellite mini-cards around a big number, derived from OTHER public cards
+   in the SAME category ("files.total" ↔ "files.top_folders") — a corner card
+   must relate to the screen it decorates, never a random other fact. */
 function satellites(card) {
+  const cat = (card.fact || "").split(".")[0];
+  if (!cat) return null;
   const sats = [];
   for (const c of story.cards) {
     if (c === card || c.private) continue;
+    if ((c.fact || "").split(".")[0] !== cat) continue;
     if (c.template === "top_list" && c.items?.length) {
       sats.push({ k: "top of the list", v: c.items[0].label, s: c.items[0].value });
     } else if (c.template === "streak" && c.value) {
@@ -79,16 +83,12 @@ function satellites(card) {
     }
   }
   if (!sats.length) return null;
-  // Two per slide on opposite corners, rotating through the pool so each
-  // satellite appears once across the deck — not the same four everywhere.
+  // Two at most, on opposite corners; diagonal alternates slide to slide.
   const bigs = story.cards.filter((c) => c.template === "big_number" && !c.private);
-  const idx = Math.max(0, bigs.indexOf(card));
-  const chosen = sats.slice(idx * 2, idx * 2 + 2);
-  if (!chosen.length) return null;
-  const corners = idx % 2 ? ["sat-tr", "sat-bl"] : ["sat-tl", "sat-br"];
+  const corners = bigs.indexOf(card) % 2 ? ["sat-tr", "sat-bl"] : ["sat-tl", "sat-br"];
   const wrap = el("div", "sats");
   wrap.setAttribute("aria-hidden", "true");
-  chosen.forEach((s, i) => {
+  sats.slice(0, 2).forEach((s, i) => {
     const node = el("div", `sat ${corners[i]}`);
     node.append(el("div", "k", s.k), el("div", "v", s.v));
     if (s.s) node.append(el("div", "s", s.s));
