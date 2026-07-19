@@ -1,11 +1,21 @@
 /* Story player: renders story-spec JSON as swipeable full-screen cards.
    Vanilla ES module, no dependencies, no build step. */
 
-import { dotMatrix, particles, streamViz, typeLine } from "./canvas-bg.js";
-import { downloadCardPNG, isExportable } from "./export.js";
+import { dotMatrix, particles, sparkline, streamViz, typeLine } from "./canvas-bg.js";
+import {
+  downloadCardPNG,
+  downloadSummaryPNG,
+  isExportable,
+  periodTag,
+  summaryCells,
+} from "./export.js";
 
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const story = JSON.parse(document.getElementById("story-data").textContent);
+
+/* The full-report summary needs at least two stats to summarise; day
+   recaps are a single moment and skip it. */
+const HAS_SUMMARY = story.period.type !== "day" && summaryCells(story).length >= 2;
 
 /* ---------- helpers ---------- */
 
@@ -255,6 +265,65 @@ function quiet() {
   return root;
 }
 
+/* Chapter 9: the whole wrap as one bento grid (Summary + Export handoff). */
+function summary() {
+  const root = el("article", "card summary");
+  for (const pos of ["tl", "tr", "bl", "br"]) root.append(el("i", `hud ${pos}`));
+  if (!REDUCED) root.append(el("i", "scanline"));
+
+  const head = el("header", "summary-head");
+  head.append(el("p", "kicker", `${periodTag(story)} · full report`));
+  const noun = story.period.type === "month" ? "month" : "year";
+  const title = el("h2", "summary-title");
+  title.append(`The ${noun} in `);
+  title.append(el("span", "grad", "numbers"));
+  head.append(title);
+  head.append(el("p", "sub", "everything above, on one screen — read straight off your box"));
+  root.append(head);
+
+  const cells = summaryCells(story);
+  const heroIdx = Math.max(cells.findIndex((c) => c.grad), 0);
+  const grid = el("div", "bento");
+  cells.slice(0, 8).forEach((cell, i) => {
+    const box = el("div", i === heroIdx ? "cell hero" : "cell");
+    box.append(el("div", "k", cell.label));
+    if (cell.bars) {
+      const bars = el("div", "mini-bars");
+      const max = Math.max(...cell.bars, 1);
+      for (const n of cell.bars) {
+        const track = el("div", "track");
+        const fill = el("div", "fill");
+        fill.style.width = `${Math.max((n / max) * 100, 6)}%`;
+        track.append(fill);
+        bars.append(track);
+      }
+      box.append(bars);
+    } else {
+      const v = el("div", cell.accent && i !== heroIdx ? "v accent" : "v");
+      if (cell.num != null) {
+        const n = el("span");
+        countUp(n, cell.num);
+        v.append(n);
+        if (cell.unit) v.append(cell.unit);
+      } else {
+        v.textContent = cell.value;
+      }
+      box.append(v);
+    }
+    if (cell.sub) box.append(el("div", "s", cell.sub));
+    if (cell.series) {
+      const cv = el("canvas", "spark");
+      cv.setAttribute("aria-hidden", "true");
+      box.append(cv);
+      // canvas needs layout before it can be fitted — draw next frame
+      requestAnimationFrame(() => sparkline(cv, cell.series));
+    }
+    grid.append(box);
+  });
+  root.append(grid);
+  return root;
+}
+
 function outro() {
   const root = el("article", "card outro");
   if (!REDUCED) {
@@ -278,9 +347,23 @@ function outro() {
   actions.append(replay);
 
   const exportable = story.cards.filter((c) => isExportable(c) || c.private);
-  if (exportable.length) {
+  if (exportable.length || HAS_SUMMARY) {
     const list = el("ul", "export-list");
     list.setAttribute("aria-label", "Export a card as PNG");
+    if (HAS_SUMMARY) {
+      const li = el("li", "full-report");
+      li.append(el("span", "swatch"));
+      const who = el("span", "name");
+      const noun = story.period.type === "month" ? "month" : "year";
+      who.append(el("span", "rep-name", `Full ${noun} report`));
+      who.append(el("span", "rep-sub", "summary · everything on one card"));
+      li.append(who);
+      const dl = el("button", "btn ghost", "PNG");
+      dl.setAttribute("aria-label", `Download the full ${noun} report as PNG`);
+      dl.addEventListener("click", () => downloadSummaryPNG(story));
+      li.append(dl);
+      list.append(li);
+    }
     for (const c of exportable) {
       const li = el("li");
       li.append(el("span", "name", c.headline));
@@ -311,6 +394,7 @@ const RENDERERS = {
   comparison,
   intro,
   quiet,
+  summary,
   outro,
 };
 
@@ -322,6 +406,7 @@ if (story.cards.length) {
 } else {
   deck.push({ template: "quiet" });
 }
+if (HAS_SUMMARY) deck.push({ template: "summary" });
 deck.push({ template: "outro" });
 
 /* ---------- player state ---------- */
@@ -333,7 +418,7 @@ const bootLine = document.querySelector(".boot-line");
 let index = -1;
 let bgMode = null;
 
-const BG = { intro: dotMatrix, quiet: dotMatrix, comparison: streamViz };
+const BG = { intro: dotMatrix, quiet: dotMatrix, summary: dotMatrix, comparison: streamViz };
 
 function chapterChrome(card) {
   if (bg) {
@@ -347,11 +432,13 @@ function chapterChrome(card) {
     const line =
       card.template === "intro"
         ? "booting recap.engine ......... ok"
-        : card.template === "outro"
-          ? "render complete — that's a wrap"
-          : card.fact
-            ? `read ${card.fact} ....... ok`
-            : "";
+        : card.template === "summary"
+          ? "render recap.summary ....... done"
+          : card.template === "outro"
+            ? "render complete — that's a wrap"
+            : card.fact
+              ? `read ${card.fact} ....... ok`
+              : "";
     bootLine.replaceChildren();
     if (line) typeLine(bootLine, [line]);
   }

@@ -119,6 +119,48 @@ export function streamViz(cv) {
   draw();
 }
 
+/* Tiny trend line: filled area + stroke + end dot, min/max normalised,
+   drawn left-to-right over ~900ms (summary slide, handoff §6). */
+export function sparkline(cv, data, color = "#ff8a72") {
+  const epoch = claim(cv);
+  const { ctx, w, h } = fit(cv);
+  const pad = 3;
+  const min = Math.min(...data);
+  const rng = Math.max(...data) - min || 1;
+  const pts = data.map((v, i) => ({
+    x: pad + (i / (data.length - 1)) * (w - pad * 2),
+    y: h - pad - ((v - min) / rng) * (h - pad * 2),
+  }));
+  const t0 = performance.now();
+  const draw = (t) => {
+    if (!alive(cv, epoch)) return;
+    const p = REDUCED ? 1 : Math.min(1, (t - t0) / 900);
+    ctx.clearRect(0, 0, w, h);
+    const vis = pts.slice(0, Math.max(2, Math.ceil(p * pts.length)));
+    ctx.beginPath();
+    ctx.moveTo(vis[0].x, h - pad);
+    for (const pt of vis) ctx.lineTo(pt.x, pt.y);
+    ctx.lineTo(vis[vis.length - 1].x, h - pad);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255,138,114,0.16)";
+    ctx.fill();
+    ctx.beginPath();
+    vis.forEach((pt, i) => (i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y)));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+    const last = vis[vis.length - 1];
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(last.x, last.y, 2.4, 0, 7);
+    ctx.fill();
+    if (p < 1 && !REDUCED) requestAnimationFrame(draw);
+  };
+  if (REDUCED) draw(0);
+  else requestAnimationFrame(draw);
+}
+
 /* Terminal line that types itself; pass an array of lines to rotate. */
 export function typeLine(el, lines) {
   if (!lines.length) return;

@@ -55,7 +55,7 @@ def test_swipe_navigation(page, server_url):
 def test_progress_segments_track_and_jump(page, server_url):
     page.goto(f"{server_url}/story/2026")
     segs = page.locator(".progress .seg")
-    assert segs.count() == 7  # intro + 5 facts + outro
+    assert segs.count() == 8  # intro + 5 facts + summary + outro
     page.keyboard.press("ArrowRight")
     assert "current" in segs.nth(1).get_attribute("class")
     assert "done" in segs.nth(0).get_attribute("class")
@@ -83,9 +83,24 @@ def test_top_list_renders_items(page, server_url):
 def test_heatmap_renders_levelled_cells(page, server_url):
     page.goto(f"{server_url}/story/2026")
     page.keyboard.press("End")
-    page.keyboard.press("ArrowLeft")
+    page.keyboard.press("ArrowLeft")  # summary slide
+    page.keyboard.press("ArrowLeft")  # heatmap
     assert page.locator(".heatmap .cell").count() > 150  # Jan..Jun of grid days
     assert page.locator(".heatmap .l4").count() >= 1  # the 12-photo day peaks
+
+
+def test_summary_slide_condenses_the_wrap(page, server_url):
+    page.goto(f"{server_url}/story/2026")
+    page.keyboard.press("End")
+    page.keyboard.press("ArrowLeft")  # summary sits just before the outro
+    stage = page.locator(".stage")
+    assert "FULL REPORT" in stage.inner_text()
+    assert "in numbers" in stage.inner_text()
+    cells = page.locator(".bento .cell")
+    assert cells.count() >= 2
+    assert page.locator(".bento .cell.hero").count() == 1
+    # private cards never reach the summary
+    assert "132 photos" not in stage.inner_text()
 
 
 def test_private_card_excluded_from_export(page, server_url):
@@ -102,9 +117,13 @@ def test_private_card_excluded_from_export(page, server_url):
 def test_png_export_downloads(page, server_url):
     page.goto(f"{server_url}/story/2026")
     page.keyboard.press("End")
+    # the full report leads the list; the first card row follows it
     with page.expect_download() as dl:
-        page.get_by_role("button", name="PNG").first.click()
-    assert dl.value.suggested_filename == "wrapped-media-total_hours.png"
+        page.locator(".export-list li.full-report button").click()
+    assert dl.value.suggested_filename == "homelab-wrapped-2026-summary.png"
+    with page.expect_download() as dl2:
+        page.get_by_role("button", name="PNG").nth(1).click()
+    assert dl2.value.suggested_filename == "wrapped-media-total_hours.png"
 
 
 def test_empty_story_shows_quiet_card(page, server_url):
