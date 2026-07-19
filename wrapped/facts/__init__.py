@@ -183,6 +183,46 @@ def _docs_top_senders(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
+def _files_total(ctx: FactContext) -> dict[str, Any] | None:
+    count, _ = ctx.store.totals(ctx.since, ctx.until, kind="file.created")
+    if not count:
+        return None
+    return {
+        "value": count,
+        "headline": f"{plural(count, 'file')} added to your cloud",
+        "sub": "synced, safe, and self-hosted",
+    }
+
+
+def _files_top_folders(ctx: FactContext) -> dict[str, Any] | None:
+    top = ctx.store.top(ctx.since, ctx.until, kind="file.created", by="count")
+    if not top:
+        return None
+    return {
+        "headline": "Where they all went",
+        "items": [{"label": label, "value": plural(n, "file")} for label, n, _ in top],
+    }
+
+
+def _storage_growth(ctx: FactContext) -> dict[str, Any] | None:
+    samples = [e.value for e in ctx.store.events(ctx.since, ctx.until, kind="storage.used")]
+    if not samples:
+        return None
+    current = samples[-1]
+    grown = current - samples[0]
+    if grown > 0:
+        return {
+            "value": round(grown),
+            "headline": f"{_human_bytes(grown)} added to your cloud",
+            "sub": f"now {_human_bytes(current)} in total",
+        }
+    return {
+        "value": round(current),
+        "headline": f"{_human_bytes(current)} in your cloud",
+        "sub": "and holding steady",
+    }
+
+
 def _dns_blocked_total(ctx: FactContext) -> dict[str, Any] | None:
     _, blocked = ctx.store.totals(ctx.since, ctx.until, kind="dns.blocked")
     if blocked < 1000:
@@ -243,6 +283,9 @@ FACTS: list[Fact] = [
     Fact("network.by_service", "comparison", _network_by_service),
     Fact("docs.total", "big_number", _docs_total),
     Fact("docs.top_senders", "top_list", _docs_top_senders),
+    Fact("files.total", "big_number", _files_total),
+    Fact("files.top_folders", "top_list", _files_top_folders),
+    Fact("storage.growth", "big_number", _storage_growth),
     Fact("dns.blocked_total", "big_number", _dns_blocked_total),
     Fact("dns.top_blocked", "top_list", _dns_top_blocked),
     Fact("system.containers", "big_number", _system_containers),

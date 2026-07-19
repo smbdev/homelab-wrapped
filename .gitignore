@@ -7,6 +7,10 @@ claude.md
 .claude-*
 
 # Planning / spec / scratch documents — never commit
+docs/superpowers/
+docs/design/
+*-design.md
+.agents/
 *-architecture.md
 *architecture*.md
 *-spec.md
