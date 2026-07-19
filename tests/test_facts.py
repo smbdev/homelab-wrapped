@@ -55,6 +55,13 @@ def test_all_facts_none_on_empty_store(store):
     assert all(f.compute(c) is None for f in FACTS)
 
 
+def test_fact_ranks_are_unique():
+    """Two facts sharing a rank makes their order arbitrary — usually a copy-paste."""
+    ranks = [f.rank for f in FACTS]
+    dupes = {r for r in ranks if ranks.count(r) > 1}
+    assert not dupes, f"duplicate fact ranks: {sorted(dupes)}"
+
+
 def test_total_hours_copy(store):
     store.add_events([play(d, f"E{d}", "The Bear", minutes=100.0) for d in range(1, 16)])
     card = fact("media.total_hours").compute(ctx(store))
