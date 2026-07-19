@@ -45,6 +45,59 @@ def test_empty_period_gives_empty_cards(store):
     assert story["cards"] == []
 
 
+def test_month_compares_against_the_same_month_last_year(store):
+    """Seasons matter more than recency — December is always the photo-heavy one."""
+    from wrapped.core.story import _prior_window
+
+    prior = _prior_window(Period("month", year=2026, month=1), UTC)
+    assert (prior.since, prior.until) == (
+        datetime(2025, 1, 1, tzinfo=UTC),
+        datetime(2025, 2, 1, tzinfo=UTC),
+    )
+    assert prior.label == "January 2025"
+
+
+def test_year_compares_against_the_year_before(store):
+    from wrapped.core.story import _prior_window
+
+    prior = _prior_window(Period("year", year=2026), UTC)
+    assert (prior.since, prior.until) == (
+        datetime(2025, 1, 1, tzinfo=UTC),
+        datetime(2026, 1, 1, tzinfo=UTC),
+    )
+    assert prior.label == "2025"
+
+
+def test_on_this_day_has_no_prior_window(store):
+    """On-this-day is already a comparison across years."""
+    from wrapped.core.story import _prior_window
+
+    assert _prior_window(Period("day", month=6, day=1), UTC) is None
+
+
+def test_year_over_year_reaches_the_card(store):
+    """End to end: enough history in the prior year puts a comparison on the card."""
+    from wrapped.core.events import Event
+
+    # 2025: 20 plays x 30 min = 600 minutes. 2026 fixture has 57.
+    store.add_events(
+        [
+            Event(
+                source="t",
+                kind="media.play",
+                ts=datetime(2025, 1 + i // 28, 1 + i % 28, 20, tzinfo=UTC),
+                entity=f"P{i}",
+                entity_group="Old Show",
+                value=30.0,
+            )
+            for i in range(20)
+        ]
+    )
+    story = build_story(store, Period("year", year=2026), UTC, now=NOW)
+    card = next(c for c in story["cards"] if c["fact"] == "media.total_hours")
+    assert card["sub"] == "less than half 2025"
+
+
 def test_cards_run_in_rank_order(store):
     """The recap is a story, so cards follow FACTS' rank, not list order."""
     from wrapped.facts import FACTS

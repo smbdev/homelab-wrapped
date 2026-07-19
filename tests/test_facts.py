@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from wrapped.core.events import Event, EventStore
-from wrapped.facts import FACTS, FactContext, plural
+from wrapped.facts import FACTS, FactContext, PriorWindow, plural, versus_prior
 
 Y2026 = (datetime(2026, 1, 1, tzinfo=UTC), datetime(2027, 1, 1, tzinfo=UTC))
 
@@ -60,6 +60,100 @@ def test_fact_ranks_are_unique():
     ranks = [f.rank for f in FACTS]
     dupes = {r for r in ranks if ranks.count(r) > 1}
     assert not dupes, f"duplicate fact ranks: {sorted(dupes)}"
+
+
+# -- year-over-year comparisons ----------------------------------------
+
+Y2025 = (datetime(2025, 1, 1, tzinfo=UTC), datetime(2026, 1, 1, tzinfo=UTC))
+
+
+def ctx_vs_2025(store, tz=UTC):
+    """A 2026 context that compares against 2025."""
+    return FactContext(
+        store=store,
+        since=Y2026[0],
+        until=Y2026[1],
+        tz=tz,
+        prior=PriorWindow(Y2025[0], Y2025[1], "2025"),
+    )
+
+
+def prior_plays(n, minutes=10.0):
+    """``n`` media.play events in 2025, spread over distinct days."""
+    return [
+        Event(
+            source="t",
+            kind="media.play",
+            ts=datetime(2025, 1 + i // 28, 1 + i % 28, 20, tzinfo=UTC),
+            entity=f"P{i}",
+            entity_group="Old Show",
+            value=minutes,
+        )
+        for i in range(n)
+    ]
+
+
+def test_versus_prior_silent_without_a_prior_window(store):
+    store.add_events(prior_plays(5))
+    assert versus_prior(ctx(store), 100.0, "media.play") is None
+
+
+def test_versus_prior_silent_on_a_first_year_homelab(store):
+    """Nothing recorded last year must not become "up ∞%"."""
+    assert versus_prior(ctx_vs_2025(store), 100.0, "media.play") is None
+
+
+def test_versus_prior_silent_when_prior_is_too_thin(store):
+    """Two stray events last year is noise, not a baseline."""
+    store.add_events(prior_plays(2, minutes=50.0))
+    assert versus_prior(ctx_vs_2025(store), 100.0, "media.play") is None
+
+
+def test_versus_prior_silent_when_current_is_zero(store):
+    store.add_events(prior_plays(5, minutes=50.0))
+    assert versus_prior(ctx_vs_2025(store), 0, "media.play") is None
+
+
+@pytest.mark.parametrize(
+    "current,expected",
+    [
+        (500.0, "more than triple 2025"),  # 5.0x
+        (300.0, "more than triple 2025"),  # exactly 3.0x
+        (250.0, "more than double 2025"),  # 2.5x
+        (140.0, "up 40% on 2025"),
+        (103.0, "almost exactly what you managed in 2025"),  # 1.03x
+        (97.0, "almost exactly what you managed in 2025"),  # 0.97x
+        (70.0, "down 30% on 2025"),
+        (40.0, "less than half 2025"),
+    ],
+)
+def test_versus_prior_bands(store, current, expected):
+    store.add_events(prior_plays(5, minutes=20.0))  # 100 minutes in 2025
+    assert versus_prior(ctx_vs_2025(store), current, "media.play") == expected
+
+
+def test_versus_prior_counts_events_when_asked(store):
+    """by='count' compares event counts, not summed values."""
+    store.add_events(
+        [
+            Event(source="t", kind="photo.taken", ts=datetime(2025, 3, i + 1, tzinfo=UTC))
+            for i in range(10)
+        ]
+    )
+    got = versus_prior(ctx_vs_2025(store), 20, "photo.taken", by="count")
+    assert got == "more than double 2025"
+
+
+def test_comparison_replaces_flavour_text(store):
+    """When there's a real comparison it wins the sub-line; flavour is the fallback."""
+    store.add_events(prior_plays(5, minutes=200.0))  # 1000 minutes in 2025
+    store.add_events([play(d, f"E{d}", "The Bear", minutes=100.0) for d in range(1, 16)])
+
+    card = fact("media.total_hours").compute(ctx_vs_2025(store))
+    assert card["sub"] == "up 50% on 2025"  # 1500 vs 1000 minutes
+
+    without_prior = fact("media.total_hours").compute(ctx(store))
+    assert without_prior["sub"] == "That's 1 full day of telly"
 
 
 def test_total_hours_copy(store):
