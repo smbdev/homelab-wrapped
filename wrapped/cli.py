@@ -79,15 +79,15 @@ def main(argv: list[str] | None = None) -> int:
     store = EventStore(config.database)
     try:
         if args.command == "sync":
-            try:
-                counts = sync_all(config, store)
-            except ValueError as exc:
-                print(f"Sync failed: {exc}", file=sys.stderr)
-                return 1
-            for name, n in counts.items():
+            report = sync_all(config, store)
+            for name, n in report.counts.items():
                 print(f"{name}: {n} new events")
-            if not counts:
+            for name, err in report.errors.items():
+                print(f"{name}: failed — {err}", file=sys.stderr)
+            if not report.counts and not report.errors:
                 print("No connectors configured — add some to config.yaml.")
+            if not report.ok:
+                return 1
         elif args.command == "build":
             try:
                 period = _parse_period(args)
