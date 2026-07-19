@@ -50,8 +50,9 @@ connectors: {}
   #   url: http://immich.local:2283
   #   api_key: YOUR_IMMICH_API_KEY
   #
-  # Nextcloud, via the Activity API (app password: Settings → Security →
-  # Devices & sessions). File uploads/shares plus a storage-used snapshot.
+  # Nextcloud, via the Activity API (app password: Personal settings →
+  # Security → Devices & sessions → Create new app password).
+  # File uploads/shares plus a storage-used snapshot.
   # nextcloud:
   #   type: nextcloud
   #   url: http://nextcloud.local:8080

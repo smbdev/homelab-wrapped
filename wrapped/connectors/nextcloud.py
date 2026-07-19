@@ -60,7 +60,11 @@ class NextcloudConnector:
     schema = [
         ConfigField("url", "Base URL of Nextcloud, e.g. http://nextcloud.local:8080"),
         ConfigField("username", "Nextcloud login name"),
-        ConfigField("app_password", "App password (Settings → Security → Devices & sessions)"),
+        ConfigField(
+            "app_password",
+            "App password — create one under Personal settings → Security → "
+            "Devices & sessions → Create new app password",
+        ),
     ]
 
     def test(self, cfg: Config) -> ConnectionResult:

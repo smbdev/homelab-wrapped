@@ -510,6 +510,43 @@ input, select { outline: none; }
 
 .hw-field input::placeholder { color: var(--hw-text-faint); opacity: 0.6; }
 
+/* Overlay placeholder that marquee-scrolls when the hint outgrows the input —
+   native placeholders clip and can't animate. Hidden once the field has a
+   value (the input keeps a " " placeholder so :placeholder-shown stays live). */
+.hw-hint-wrap { position: relative; }
+
+.hw-hint {
+  position: absolute;
+  inset: 1px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding-inline: 1em;
+  border-radius: var(--hw-r-input);
+  pointer-events: none;
+  color: var(--hw-text-faint);
+  opacity: 0.6;
+  font: 400 13px/1.4 var(--hw-font-mono);
+}
+
+.hw-hint-wrap input:not(:placeholder-shown) ~ .hw-hint { display: none; }
+
+.hw-hint-track { display: inline-flex; white-space: nowrap; }
+
+.hw-hint-wrap.scroll .hw-hint-track > span { padding-right: 3ch; }
+
+.hw-hint-wrap.scroll .hw-hint-track {
+  animation: hw-hint-marquee 14s linear infinite;
+}
+
+@keyframes hw-hint-marquee {
+  to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-hint-wrap.scroll .hw-hint-track { animation: none; }
+}
+
 .hw-field input:focus-visible, .hw-field select:focus-visible {
   outline: none;
   border-color: var(--hw-red);
