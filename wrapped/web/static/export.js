@@ -240,3 +240,209 @@ export async function downloadCardPNG(card, periodLabel) {
     URL.revokeObjectURL(a.href);
   }, "image/png");
 }
+
+/* ---------- full report (summary slide + summary PNG) ---------- */
+
+/* "2026" for yearly, "June 2026" for monthly — the report's period tag. */
+export function periodTag(story) {
+  return story.period.type === "year" ? story.period.id : story.period.label;
+}
+
+/* "412 hours watched" with value 412 → "hours watched"; else the headline. */
+function cellLabel(card) {
+  const prefix = fmt(card.value) + " ";
+  const h = card.headline || (card.fact || "").split(".")[0];
+  return h.startsWith(prefix) ? h.slice(prefix.length) : h;
+}
+
+/* One condensed stat per public card — the single source both the summary
+   slide's bento grid and the full-report PNG render from. */
+export function summaryCells(story) {
+  const cells = [];
+  for (const c of story.cards) {
+    if (c.private) continue;
+    if (c.template === "big_number" || c.template === "superlative") {
+      cells.push({ label: cellLabel(c), value: fmt(c.value), num: c.value, sub: c.sub || "", grad: true });
+    } else if (c.template === "streak") {
+      cells.push({
+        label: cellLabel(c),
+        value: `${fmt(c.value)} days`,
+        num: c.value,
+        unit: " days",
+        sub: c.sub || "",
+        accent: true,
+      });
+    } else if (c.template === "top_list" && c.items?.length) {
+      const more = c.items.length - 1;
+      cells.push({
+        label: cellLabel(c),
+        value: c.items[0].label,
+        sub: String(c.items[0].value) + (more > 0 ? ` · ${more} more` : ""),
+      });
+    } else if (c.template === "comparison" && c.items?.length) {
+      const items = c.items.slice(0, 3);
+      const nums = items.map((i) => Number(i.raw ?? i.value) || 0);
+      const leader = items[nums.indexOf(Math.max(...nums))];
+      cells.push({
+        label: items.map((i) => i.label).join(" / "),
+        value: leader.label,
+        bars: nums,
+        sub: items.map((i) => String(i.value)).join(" · "),
+      });
+    } else if (c.template === "heatmap" && c.data) {
+      const keys = Object.keys(c.data).sort();
+      const values = keys.map((k) => c.data[k]);
+      const active = values.filter(Boolean).length;
+      // real trend, not decoration: daily totals folded into 12 buckets
+      let series = null;
+      if (values.length >= 4) {
+        series = Array(12).fill(0);
+        values.forEach((v, i) => {
+          series[Math.floor((i / values.length) * 12)] += v;
+        });
+      }
+      cells.push({
+        label: "Activity",
+        value: `${fmt(active)} days`,
+        num: active,
+        unit: " days",
+        sub: "with something happening",
+        accent: true,
+        series,
+      });
+    }
+  }
+  return cells;
+}
+
+/* The "Full report" share card: every public stat on one 1080×1350 PNG,
+   laid out per the Summary + Export handoff (§3). */
+export function renderSummaryPNG(story) {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  const padX = 70;
+  const tag = periodTag(story).toUpperCase();
+
+  const bg = ctx.createRadialGradient(W * 0.5, H * 0.4, 60, W * 0.5, H * 0.4, H * 0.78);
+  bg.addColorStop(0, "#3a0808");
+  bg.addColorStop(0.72, "#0a0304");
+  bg.addColorStop(1, "#0a0304");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // header: beacon + wordmark left, period right
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = COLORS.primary;
+  ctx.beginPath();
+  ctx.arc(padX + 7, 92, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `600 22px ${MONO}`;
+  ctx.textAlign = "left";
+  ctx.letterSpacing = "3px";
+  ctx.fillText("HOMELAB WRAPPED", padX + 26, 94);
+  ctx.letterSpacing = "0px";
+  ctx.textAlign = "right";
+  ctx.fillStyle = COLORS.faint;
+  ctx.fillText(tag, W - padX, 94);
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+
+  // kicker + two-line title
+  ctx.fillStyle = "#ff9a8f";
+  ctx.font = `600 26px ${MONO}`;
+  ctx.letterSpacing = "5px";
+  ctx.fillText(`${tag} · FULL REPORT`, padX, 220);
+  ctx.letterSpacing = "0px";
+  const noun = story.period.type === "month" ? "month" : "year";
+  ctx.fillStyle = COLORS.ink;
+  ctx.font = `700 78px ${FONT}`;
+  ctx.fillText(`The ${noun}`, padX, 320);
+  const hg = ctx.createLinearGradient(padX, 340, padX, 410);
+  hg.addColorStop(0, "#ff8472");
+  hg.addColorStop(1, "#d20c0c");
+  ctx.fillStyle = hg;
+  ctx.fillText("in numbers", padX, 402);
+
+  // one rounded stat box; the value shrinks until it fits its box
+  const stat = (x, y, w, h, cell, big, grad) => {
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, 22);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = COLORS.accent;
+    ctx.font = `600 18px ${MONO}`;
+    ctx.letterSpacing = "2px";
+    const label = cell.label.toUpperCase();
+    ctx.fillText(label.length > 34 ? label.slice(0, 33) + "…" : label, x + 30, y + 50);
+    ctx.letterSpacing = "0px";
+    let size = big;
+    ctx.font = `700 ${size}px ${FONT}`;
+    while (size > 26 && ctx.measureText(cell.value).width > w - 60) {
+      size -= 6;
+      ctx.font = `700 ${size}px ${FONT}`;
+    }
+    // the hero's huge digits anchor to the box bottom so they can never
+    // run into the sub line; small cells hang off the label instead
+    const baseline = grad ? y + h - 84 : y + 50 + size;
+    if (grad) {
+      const vg = ctx.createLinearGradient(0, baseline - size, 0, baseline);
+      vg.addColorStop(0, "#ffffff");
+      vg.addColorStop(0.55, "#ffb0a4");
+      vg.addColorStop(1, "#e51010");
+      ctx.fillStyle = vg;
+    } else {
+      ctx.fillStyle = cell.accent ? "#ff7a5a" : COLORS.ink;
+    }
+    ctx.fillText(cell.value, x + 30, baseline);
+    if (cell.sub) {
+      ctx.fillStyle = COLORS.muted;
+      ctx.font = `400 22px ${MONO}`;
+      const sub = cell.sub.length > Math.floor(w / 14) ? cell.sub.slice(0, Math.floor(w / 14) - 1) + "…" : cell.sub;
+      ctx.fillText(sub, x + 30, y + h - 34);
+    }
+  };
+
+  const cells = summaryCells(story);
+  const heroIdx = Math.max(cells.findIndex((c) => c.grad), 0);
+  const hero = cells[heroIdx];
+  const rest = cells.filter((_, i) => i !== heroIdx).slice(0, 6);
+
+  const gw = W - padX * 2;
+  const gap = 22;
+  const cw = (gw - gap) / 2;
+  let y = 470;
+  if (hero) {
+    stat(padX, y, gw, 250, hero, 132, hero.grad);
+    y += 250 + gap;
+  }
+  const rH = rest.length > 4 ? 150 : 200;
+  const vSize = rest.length > 4 ? 44 : 58;
+  rest.forEach((cell, i) => {
+    stat(padX + (i % 2) * (cw + gap), y + Math.floor(i / 2) * (rH + gap), cw, rH, cell, vSize, false);
+  });
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = COLORS.faint;
+  ctx.font = `400 24px ${MONO}`;
+  ctx.fillText("generated on your hardware · nothing left the building", W / 2, H - 64);
+  ctx.textAlign = "left";
+  return canvas;
+}
+
+export async function downloadSummaryPNG(story) {
+  await document.fonts.ready;
+  const canvas = renderSummaryPNG(story);
+  canvas.toBlob((blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `homelab-wrapped-${story.period.id}-summary.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, "image/png");
+}
