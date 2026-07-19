@@ -214,6 +214,9 @@ def add_settings_routes(app: FastAPI, templates, config_path: Path) -> None:
             result = discover.scan()
         except OSError as exc:
             return JSONResponse({"error": f"Could not read Docker: {exc}"}, status_code=502)
+        # already-connected services aren't suggestions — they're in the list above
+        configured = {c.type for c in load_config(config_path).connectors}
+        result["found"] = [s for s in result["found"] if s["type"] not in configured]
         plugins = all_connectors()
         for s in result["found"]:
             # which required fields the browser can't derive (url comes from
