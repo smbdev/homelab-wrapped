@@ -81,7 +81,8 @@ def build_story(
             since, until = month_window(period.year, period.month, tz)
         ctx = FactContext(store=store, since=since, until=until, tz=tz)
         cards = []
-        for fact in FACTS:
+        # Ascending rank, not list order — see FACTS for the shape of the arc.
+        for fact in sorted(FACTS, key=lambda f: f.rank):
             card = fact.compute(ctx)
             if card is not None:
                 cards.append(

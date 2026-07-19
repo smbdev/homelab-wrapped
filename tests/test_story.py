@@ -45,6 +45,24 @@ def test_empty_period_gives_empty_cards(store):
     assert story["cards"] == []
 
 
+def test_cards_run_in_rank_order(store):
+    """The recap is a story, so cards follow FACTS' rank, not list order."""
+    from wrapped.facts import FACTS
+
+    rank = {f.id: f.rank for f in FACTS}
+    story = build_story(store, Period("year", year=2026), UTC, now=NOW)
+    ranks = [rank[c["fact"]] for c in story["cards"]]
+    assert ranks == sorted(ranks)
+
+
+def test_arc_survives_a_sparse_homelab(store):
+    """One connector's worth of data still opens warm and closes on the year."""
+    story = build_story(store, Period("year", year=2026), UTC, now=NOW)
+    facts = [c["fact"] for c in story["cards"]]
+    assert facts[0] == "media.total_hours", "the recap opens on something human"
+    assert facts[-1] == "activity.by_day", "and closes on the whole year at once"
+
+
 def test_on_this_day(store):
     story = build_story(store, Period("day", month=6, day=1), UTC, now=NOW)
     (card,) = story["cards"]  # Severance was played 2025-06-01

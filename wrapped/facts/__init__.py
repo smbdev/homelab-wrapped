@@ -274,29 +274,57 @@ def _system_containers(ctx: FactContext) -> dict[str, Any] | None:
 
 @dataclass(frozen=True)
 class Fact:
-    """One recap fact: id, card template, privacy default, and its compute fn."""
+    """One recap fact: id, card template, running order, and its compute fn.
+
+    Attributes:
+        id: Stable fact identifier, e.g. ``media.top_shows``.
+        template: Which player card template renders it.
+        compute: Turns a :class:`FactContext` into a card, or ``None``.
+        rank: Position in the story. Cards are emitted in ascending rank, not
+            in list order, so a fact can be added anywhere in ``FACTS`` and
+            still land in the right beat of the recap. See :data:`FACTS`.
+        private: Private facts render locally but are stripped from exports.
+    """
 
     id: str
     template: str
     compute: Callable[[FactContext], dict[str, Any] | None]
-    private: bool = False  # private facts render locally but are stripped from exports
+    rank: int
+    private: bool = False
 
 
+# The running order of the recap, not a registry — the list is sorted by
+# ``rank`` before rendering, so this is the story's shape:
+#
+#   10–40    what you watched and shot — the warm, personal open
+#   50–90    what you filed and stored — your stuff piling up
+#   100–140  the machines: containers, bandwidth, ads swallowed. The numbers
+#            get big here; dns.blocked_total is the loudest brag we have.
+#   150–160  back to you: the streak, then the whole year as one grid
+#
+# Facts with no data return no card, so the arc degrades gracefully — a
+# Jellyfin-only homelab still opens on hours watched and closes on its
+# heatmap. Ranks are spaced by 10 so a new fact can slot between two
+# existing beats without renumbering.
+#
+# ponytail: static ranks, not data-driven scoring — an "impressiveness"
+# score per card would let a monster number promote itself to the finale;
+# add that if a fixed order proves boring across real homelabs.
 FACTS: list[Fact] = [
-    Fact("media.total_hours", "big_number", _media_total_hours),
-    Fact("media.top_shows", "top_list", _media_top_shows),
-    Fact("photos.total", "big_number", _photos_total),
-    Fact("photos.busiest_day", "superlative", _photos_busiest_day),
-    Fact("activity.streak", "streak", _activity_streak),
-    Fact("activity.by_day", "heatmap", _activity_heatmap),
-    Fact("network.total", "big_number", _network_total),
-    Fact("network.by_service", "comparison", _network_by_service),
-    Fact("docs.total", "big_number", _docs_total),
-    Fact("docs.top_senders", "top_list", _docs_top_senders),
-    Fact("files.total", "big_number", _files_total),
-    Fact("files.top_folders", "top_list", _files_top_folders),
-    Fact("storage.growth", "big_number", _storage_growth),
-    Fact("dns.blocked_total", "big_number", _dns_blocked_total),
-    Fact("dns.top_blocked", "top_list", _dns_top_blocked),
-    Fact("system.containers", "big_number", _system_containers),
+    Fact("media.total_hours", "big_number", _media_total_hours, rank=10),
+    Fact("media.top_shows", "top_list", _media_top_shows, rank=20),
+    Fact("photos.total", "big_number", _photos_total, rank=30),
+    Fact("photos.busiest_day", "superlative", _photos_busiest_day, rank=40),
+    Fact("files.total", "big_number", _files_total, rank=50),
+    Fact("files.top_folders", "top_list", _files_top_folders, rank=60),
+    Fact("docs.total", "big_number", _docs_total, rank=70),
+    Fact("docs.top_senders", "top_list", _docs_top_senders, rank=80),
+    Fact("storage.growth", "big_number", _storage_growth, rank=90),
+    Fact("system.containers", "big_number", _system_containers, rank=100),
+    Fact("network.total", "big_number", _network_total, rank=110),
+    Fact("network.by_service", "comparison", _network_by_service, rank=120),
+    Fact("dns.blocked_total", "big_number", _dns_blocked_total, rank=130),
+    Fact("dns.top_blocked", "top_list", _dns_top_blocked, rank=140),
+    Fact("activity.streak", "streak", _activity_streak, rank=150),
+    Fact("activity.by_day", "heatmap", _activity_heatmap, rank=160),
 ]
