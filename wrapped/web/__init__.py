@@ -9,6 +9,7 @@ the frontend too: the pages make zero external requests.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -63,7 +64,7 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
                 {
                     "id": period_id,
                     "label": story["period"]["label"],
-                    "kind": {"year": "yearly", "month": "monthly"}.get(
+                    "kind": {"year": "yearly", "month": "monthly", "day": "on this day"}.get(
                         story["period"].get("type", ""), "recap"
                     ),
                     "n_cards": len(cards),
@@ -71,10 +72,11 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
                     "cards": cards,
                 }
             )
-        # yearly recaps lead (newest first), monthlies follow — the first
-        # entry is the dashboard's featured card; two stable sorts do it
+        # yearly recaps lead (newest first), monthlies follow, on-this-day
+        # last — the first entry is the dashboard's featured card; two
+        # stable sorts do it
         entries.sort(key=lambda e: e["id"], reverse=True)
-        entries.sort(key=lambda e: e["kind"] != "yearly")
+        entries.sort(key=lambda e: {"yearly": 0, "monthly": 1}.get(e["kind"], 2))
         return entries
 
     def dashboard_extras(stories: list[dict]) -> dict:
@@ -113,7 +115,12 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
         return templates.TemplateResponse(
             request,
             "index.html",
-            {"stories": stories, "has_settings": has_settings, **dashboard_extras(stories)},
+            {
+                "stories": stories,
+                "has_settings": has_settings,
+                "today": f"{datetime.now():%-d %b}".upper(),
+                **dashboard_extras(stories),
+            },
         )
 
     @app.get("/story/{period_id}", response_class=HTMLResponse)

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Settings — Homelab Wrapped{% endblock %}
 {% block body %}
-<canvas id="hw-bg" aria-hidden="true"></canvas>
+<canvas id="hw-bg" class="hw-bg--tr" aria-hidden="true"></canvas>
 <main class="hw-shell">
   <header class="hw-top hw-rise">
     <a class="hw-mark" href="/">Homelab Wrapped</a>
@@ -73,6 +73,7 @@
       </section>
 
       <section class="hw-panel hw-panel--scan" aria-labelledby="scan-h">
+        <canvas class="hw-stream" aria-hidden="true"></canvas>
         <h2 id="scan-h">Find services automatically</h2>
         <button class="hw-btn" id="scan-btn" type="button">Scan this server</button>
         <p class="hw-hint">Reads the Docker containers on this machine and prefills the form for anything it recognises. Local only — nothing leaves your server.</p>
