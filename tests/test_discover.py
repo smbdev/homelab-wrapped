@@ -38,6 +38,18 @@ CONTAINERS = [
         "Ports": [{"PrivatePort": 8000, "PublicPort": 8010}],
         "Mounts": [],
     },
+    {
+        "Names": ["/nextcloud-nextcloud-1"],
+        "Image": "nextcloud:latest",
+        "Ports": [{"PrivatePort": 80, "PublicPort": 8080}],
+        "Mounts": [],
+    },
+    {
+        "Names": ["/nextcloud-nextcloud-db-1"],
+        "Image": "postgres:16-alpine",
+        "Ports": [{"PrivatePort": 5432}],
+        "Mounts": [],
+    },
 ]
 
 
@@ -55,8 +67,9 @@ def test_scan_recognises_known_services(fake_docker):
         "immich",
         "pihole",
         "paperless",
+        "nextcloud",
     ]
-    assert result["unknown"] == ["immich_postgres"]
+    assert result["unknown"] == ["immich_postgres", "nextcloud-nextcloud-db-1"]
 
 
 def test_scan_this_server_is_one_click(fake_docker):
@@ -87,6 +100,13 @@ def test_immich_suggestion_carries_published_port(fake_docker):
     assert im["port"] == 2283
     assert im["ready"] is True
     assert "API key" in im["note"]
+
+
+def test_nextcloud_suggestion_carries_published_port(fake_docker):
+    (nc,) = [s for s in discover.scan()["found"] if s["type"] == "nextcloud"]
+    assert nc["port"] == 8080
+    assert nc["ready"] is True
+    assert "app password" in nc["note"]
 
 
 def test_docker_available_false_without_socket(monkeypatch):

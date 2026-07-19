@@ -132,6 +132,28 @@ def test_scan_route_returns_suggestions(client, monkeypatch):
     assert r.json()["unknown"] == ["pihole"]
 
 
+def test_scan_hides_already_connected(client, config_path, monkeypatch):
+    import wrapped.web.discover as discover
+    from wrapped.core.config import add_connector
+
+    add_connector(config_path, "immich", "immich", {"url": "http://x", "api_key": "k"})
+    suggestion = {"fields": {}, "port": 1, "ready": True, "note": "n"}
+    monkeypatch.setattr(discover, "docker_available", lambda: True)
+    monkeypatch.setattr(
+        discover,
+        "scan",
+        lambda: {
+            "unknown": [],
+            "found": [
+                {"type": "immich", "name": "immich", **suggestion},
+                {"type": "nextcloud", "name": "nextcloud", **suggestion},
+            ],
+        },
+    )
+    types = [s["type"] for s in client.get("/settings/scan").json()["found"]]
+    assert types == ["nextcloud"]  # immich is already connected
+
+
 def test_scan_route_explains_missing_socket(client, monkeypatch):
     import wrapped.web.discover as discover
 
