@@ -759,6 +759,25 @@ input, select { outline: none; }
   text-align: center;
 }
 
+/* compact variant for the hub's on-this-day slot */
+.hw-quiet--slot {
+  min-height: 172px;
+  padding: 1.4rem 1.5rem 1.2rem;
+}
+
+.hw-quiet--slot .mid { padding: 0.6rem 0 0; }
+
+.hw-quiet--slot .glyph {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+.hw-quiet--slot h3 { margin: 0.7rem 0 0; }
+
+.hw-quiet--slot .mid p { font-size: 11px; }
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
