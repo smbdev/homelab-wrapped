@@ -107,12 +107,18 @@ def _activity_heatmap(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
-def _human_bytes(n: float) -> str:
+def _bytes_parts(n: float) -> tuple[float, str]:
+    """Scale bytes to a display (number, unit) pair — the number is the hero."""
     if n >= 1e12:
-        return f"{n / 1e12:.1f} TB"
+        return round(n / 1e12, 1), "TB"
     if n >= 1e9:
-        return f"{round(n / 1e9):,} GB"
-    return f"{round(n / 1e6):,} MB"
+        return round(n / 1e9), "GB"
+    return round(n / 1e6), "MB"
+
+
+def _human_bytes(n: float) -> str:
+    num, unit = _bytes_parts(n)
+    return f"{num:,} {unit}"
 
 
 def _net_deltas(ctx: FactContext) -> dict[str, float]:
@@ -210,15 +216,19 @@ def _storage_growth(ctx: FactContext) -> dict[str, Any] | None:
         return None
     current = samples[-1]
     grown = current - samples[0]
+    # value is the scaled display number (71 for "71 MB"), never raw bytes —
+    # the big-number template renders it as the hero
     if grown > 0:
+        num, unit = _bytes_parts(grown)
         return {
-            "value": round(grown),
-            "headline": f"{_human_bytes(grown)} added to your cloud",
+            "value": num,
+            "headline": f"{num:,} {unit} added to your cloud",
             "sub": f"now {_human_bytes(current)} in total",
         }
+    num, unit = _bytes_parts(current)
     return {
-        "value": round(current),
-        "headline": f"{_human_bytes(current)} in your cloud",
+        "value": num,
+        "headline": f"{num:,} {unit} in your cloud",
         "sub": "and holding steady",
     }
 

@@ -111,5 +111,6 @@ def test_files_and_storage_facts(fake_api):
     folders = _files_top_folders(ctx)
     assert {i["label"] for i in folders["items"]} == {"Photos", "/"}
     growth = _storage_growth(ctx)
+    assert growth["value"] == 3  # scaled display number, never raw bytes
     assert growth["headline"] == "3 GB added to your cloud"
     assert "5 GB" in growth["sub"]

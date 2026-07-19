@@ -248,10 +248,10 @@ html, body { overflow: hidden; }
   animation: hlwPop 0.5s ease both;
 }
 
-.sat:nth-child(1) { top: 14%; left: 6%; animation-delay: 250ms; }
-.sat:nth-child(2) { top: 20%; right: 7%; animation-delay: 350ms; }
-.sat:nth-child(3) { bottom: 16%; left: 8%; animation-delay: 450ms; }
-.sat:nth-child(4) { bottom: 20%; right: 6%; animation-delay: 550ms; }
+.sat-tl { top: 14%; left: 6%; animation-delay: 250ms; }
+.sat-tr { top: 20%; right: 7%; animation-delay: 350ms; }
+.sat-bl { bottom: 16%; left: 8%; animation-delay: 450ms; }
+.sat-br { bottom: 20%; right: 6%; animation-delay: 550ms; }
 
 .sat .k {
   font: 600 9px/1.4 var(--hw-font-mono);
