@@ -8,6 +8,7 @@ claude.md
 
 # Planning / spec / scratch documents — never commit
 docs/superpowers/
+docs/design/
 *-design.md
 .agents/
 *-architecture.md
