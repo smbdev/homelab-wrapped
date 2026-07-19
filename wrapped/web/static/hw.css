@@ -115,7 +115,9 @@ input, select { outline: none; }
   border-radius: 4px;
 }
 
-/* dot-matrix canvas painted by hw-bg.js; sits behind everything */
+/* dot-matrix canvas painted by hw-bg.js; sits behind everything.
+   The red page glow rides as the canvas element's CSS background —
+   drawn dots stay transparent, so it shows through for free. */
 #hw-bg {
   position: fixed;
   inset: 0;
@@ -123,6 +125,12 @@ input, select { outline: none; }
   height: 100%;
   z-index: 0;
   pointer-events: none;
+  background: radial-gradient(50% 46% at 24% 30%, rgba(180, 20, 20, 0.22), transparent 64%);
+}
+
+/* settings variant: glow sits top-right (prototype settings screen) */
+#hw-bg.hw-bg--tr {
+  background: radial-gradient(46% 46% at 80% 12%, rgba(180, 20, 20, 0.22), transparent 64%);
 }
 
 .hw-shell {
@@ -217,6 +225,15 @@ input, select { outline: none; }
 .hw-pill:hover { border-color: var(--hw-border-strong); background: rgba(255, 255, 255, 0.09); color: var(--hw-text); }
 
 .hw-pill--user { color: var(--hw-text-muted); font-family: var(--hw-font-mono); font-size: 11px; }
+
+.hw-pill--user::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hw-ok);
+  box-shadow: 0 0 8px var(--hw-ok);
+}
 
 .hw-ticker {
   position: fixed;
@@ -394,10 +411,20 @@ input, select { outline: none; }
 .hw-panel--scan {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(30rem 14rem at 90% 0%, rgba(230, 50, 50, 0.18), transparent 70%),
-    var(--hw-card);
-  border-color: rgba(230, 50, 50, 0.45);
+  background: linear-gradient(135deg, rgba(120, 14, 14, 0.4), rgba(20, 10, 10, 0.5));
+  border-color: rgba(230, 50, 50, 0.32);
+}
+
+/* data-stream canvas behind the scan card's content */
+.hw-panel--scan > :not(.hw-stream) { position: relative; }
+
+.hw-stream {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  pointer-events: none;
 }
 
 .hw-grid {
@@ -667,6 +694,51 @@ input, select { outline: none; }
 
 .hw-step p { margin: 0; color: var(--hw-text-muted); font-size: 0.95rem; }
 .hw-step p b { color: var(--hw-text); font-weight: 600; }
+
+/* example On-This-Day quiet card beside the onboarding steps */
+.hw-quiet {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 16rem;
+  background: var(--hw-card);
+  border: 1px dashed var(--hw-border-strong);
+  border-radius: var(--hw-r-card);
+  padding: 1.6rem;
+}
+
+.hw-quiet .mid { text-align: center; padding: 1.5rem 0; }
+
+.hw-quiet .glyph {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hw-border-strong);
+  border-radius: 12px;
+  font-size: 20px;
+  color: var(--hw-text-faint);
+}
+
+.hw-quiet h3 {
+  font: 600 18px/1.3 var(--hw-font-display);
+  color: rgba(255, 255, 255, 0.75);
+  margin: 1rem 0 0;
+}
+
+.hw-quiet .mid p {
+  font: 400 12px/1.5 var(--hw-font-mono);
+  color: var(--hw-text-faint);
+  max-width: 240px;
+  margin: 0.4rem auto 0;
+}
+
+.hw-quiet .ex {
+  font: 400 10px/1 var(--hw-font-mono);
+  color: var(--hw-text-faint);
+  text-align: center;
+}
 
 /* ---------- reduced motion ---------- */
 

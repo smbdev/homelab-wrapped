@@ -48,17 +48,28 @@
     <h1>Nothing wrapped <em>yet</em>.</h1>
     <p class="hw-lede">Connect a service and your first recap builds itself — no shell, no cron, no editor.</p>
   </section>
-  <div class="hw-panel hw-rise hw-rise-2" style="max-width: 34rem">
-    <div class="hw-steps">
-      <div class="hw-step"><span class="no">01</span><p><b>Connect a service</b>{% if has_settings %} in Settings — or let the Docker scan find them for you.{% else %} — point <code>config.yaml</code> at your services and restart.{% endif %}</p></div>
-      <div class="hw-step"><span class="no">02</span><p><b>Sync &amp; build</b> happens automatically on startup and on a schedule.</p></div>
-      <div class="hw-step"><span class="no">03</span><p><b>Watch your year</b> — swipeable chapters, exportable as share-ready PNGs.</p></div>
+  <div class="hw-grid hw-rise hw-rise-2" style="max-width: 60rem">
+    <div class="hw-panel">
+      <div class="hw-steps">
+        <div class="hw-step"><span class="no">01</span><p><b>Connect a service</b>{% if has_settings %} in Settings — or let the Docker scan find them for you.{% else %} — point <code>config.yaml</code> at your services and restart.{% endif %}</p></div>
+        <div class="hw-step"><span class="no">02</span><p><b>Sync &amp; build</b> happens automatically on startup and on a schedule.</p></div>
+        <div class="hw-step"><span class="no">03</span><p><b>Watch your year</b> — swipeable chapters, exportable as share-ready PNGs.</p></div>
+      </div>
+      {% if has_settings %}
+      <a class="hw-btn" href="/settings">Add your services</a>
+      {% else %}
+      <p class="hw-hint">Run <b>wrapped sync</b> and <b>wrapped build</b> by hand any time, then refresh this page.</p>
+      {% endif %}
     </div>
-    {% if has_settings %}
-    <a class="hw-btn" href="/settings">Add your services</a>
-    {% else %}
-    <p class="hw-hint">Run <b>wrapped sync</b> and <b>wrapped build</b> by hand any time, then refresh this page.</p>
-    {% endif %}
+    <aside class="hw-quiet" aria-label="Example On-This-Day card">
+      <span class="hw-kick" style="color: var(--hw-text-faint)">On this day · {{ today }}</span>
+      <div class="mid">
+        <span class="glyph" aria-hidden="true">···</span>
+        <h3>A quiet day</h3>
+        <p>No events recorded for this date. Quiet days count too — come back when there's history.</p>
+      </div>
+      <span class="ex">example · quiet-card state</span>
+    </aside>
   </div>
   {% endif %}
 </main>
