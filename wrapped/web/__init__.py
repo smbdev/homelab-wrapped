@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from wrapped.core.story import list_stories, load_story
+from wrapped.facts import plural
 
 _HERE = Path(__file__).parent
 
@@ -67,7 +68,7 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
                     "kind": {"year": "yearly", "month": "monthly", "day": "on this day"}.get(
                         story["period"].get("type", ""), "recap"
                     ),
-                    "n_cards": len(cards),
+                    "n_cards": plural(len(cards), "chapter"),
                     "minutes": max(1, round(len(cards) * 12 / 60)),
                     "cards": cards,
                 }
