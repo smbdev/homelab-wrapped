@@ -60,12 +60,21 @@
     </div>
     {% endif %}
 
-    {% if otd %}
+    {% if otd and otd.cards %}
     <a class="hw-recap" href="/story/{{ otd.id }}">
       <div><span class="hw-kick">on this day</span><h3>{{ otd.label | replace("On this day, ", "") }}</h3></div>
       <span class="meta">{{ otd.n_cards }} · ~{{ otd.minutes }} min</span>
       <span class="go" aria-hidden="true">→</span>
     </a>
+    {% elif otd %}
+    <div class="hw-quiet hw-quiet--slot">
+      <span class="hw-kick" style="color: var(--hw-text-faint)">On this day · {{ otd.label | replace("On this day, ", "") }}</span>
+      <div class="mid">
+        <span class="glyph" aria-hidden="true">···</span>
+        <h3>A quiet day</h3>
+        <p>No events recorded for this date. Quiet days count too — come back when there's history.</p>
+      </div>
+    </div>
     {% else %}
     <div class="hw-recap hw-recap--soon">
       <div><span class="hw-kick">on this day</span><h3>{{ today | title }}</h3></div>
