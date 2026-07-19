@@ -19,13 +19,35 @@ from wrapped.core.events import EventStore, busiest_day, longest_streak
 
 
 @dataclass(frozen=True)
+class PriorWindow:
+    """The equivalent window one period back, for year-over-year copy.
+
+    Attributes:
+        since: Inclusive start of the earlier window.
+        until: Exclusive end of the earlier window.
+        label: What to call it in copy, e.g. ``"2025"`` or ``"February"``.
+    """
+
+    since: datetime
+    until: datetime
+    label: str
+
+
+@dataclass(frozen=True)
 class FactContext:
-    """Everything a fact function needs to compute its card."""
+    """Everything a fact function needs to compute its card.
+
+    ``prior`` is the same-length window one period earlier, or ``None`` when
+    there isn't a sensible one (on-this-day recaps). It's computed by the
+    story builder, which is the only place that knows whether this is a year
+    or a month.
+    """
 
     store: EventStore
     since: datetime
     until: datetime
     tz: tzinfo
+    prior: PriorWindow | None = None
 
 
 def plural(n: int | float, noun: str, plural_form: str | None = None) -> str:
@@ -34,6 +56,58 @@ def plural(n: int | float, noun: str, plural_form: str | None = None) -> str:
         n = int(n)
     word = noun if n == 1 else (plural_form or noun + "s")
     return f"{n:,} {word}"
+
+
+# Below this many events in the earlier window, any comparison is noise.
+# ponytail: a flat threshold, not a significance test — this is a recap, not
+# a statistics package; raise it if real homelabs still produce silly deltas.
+_MIN_PRIOR_EVENTS = 3
+
+
+def versus_prior(ctx: FactContext, current: float, kind: str, by: str = "value") -> str | None:
+    """Compare a total against the same window a period earlier.
+
+    The single most shareable line a recap has ("up 38% on 2025"), and the
+    data is already in the store — it's the same query one window back.
+
+    Silent (returns ``None``) whenever a comparison would mislead: no prior
+    window, a current total of zero, or too little recorded back then. That
+    last guard matters — a first-year homelab shouldn't be told it grew
+    infinitely, and "up 300%" off a single stray event last year is noise
+    dressed up as a statistic. Big multiples get words instead of a
+    percentage, because "up 4,200%" reads as a bug.
+
+    Args:
+        ctx: The fact's context; uses ``ctx.prior``.
+        current: This window's total, in the same unit as ``by``.
+        kind: Event kind to total over, e.g. ``"photo.taken"``.
+        by: ``"value"`` to sum event values, ``"count"`` to count events.
+
+    Returns:
+        A sub-line like ``"up 38% on 2025"``, or ``None`` to stay quiet.
+    """
+    if ctx.prior is None or not current:
+        return None
+    count, value = ctx.store.totals(ctx.prior.since, ctx.prior.until, kind=kind)
+    if count < _MIN_PRIOR_EVENTS:
+        return None
+    before = count if by == "count" else value
+    if not before:
+        return None
+
+    ratio = current / before
+    label = ctx.prior.label
+    if ratio >= 3:
+        return f"more than triple {label}"
+    if ratio >= 2:
+        return f"more than double {label}"
+    if ratio > 1.05:
+        return f"up {round((ratio - 1) * 100)}% on {label}"
+    if ratio < 0.5:
+        return f"less than half {label}"
+    if ratio < 0.95:
+        return f"down {round((1 - ratio) * 100)}% on {label}"
+    return f"almost exactly what you managed in {label}"
 
 
 def _media_total_hours(ctx: FactContext) -> dict[str, Any] | None:
@@ -45,9 +119,13 @@ def _media_total_hours(ctx: FactContext) -> dict[str, Any] | None:
         "value": hours,
         "headline": f"{plural(hours, 'hour')} watched",
     }
+    # A year-over-year line beats the flavour text when we have one; the
+    # flavour text is the fallback for a homelab's first recap.
     days = minutes / 60 / 24
-    if days >= 1:
-        card["sub"] = f"That's {plural(round(days), 'full day')} of telly"
+    flavour = f"That's {plural(round(days), 'full day')} of telly" if days >= 1 else None
+    sub = versus_prior(ctx, minutes, "media.play") or flavour
+    if sub:
+        card["sub"] = sub
     return card
 
 
@@ -65,7 +143,11 @@ def _photos_total(ctx: FactContext) -> dict[str, Any] | None:
     count, _ = ctx.store.totals(ctx.since, ctx.until, kind="photo.taken")
     if not count:
         return None
-    return {"value": count, "headline": f"{plural(count, 'photo')} taken"}
+    card: dict[str, Any] = {"value": count, "headline": f"{plural(count, 'photo')} taken"}
+    sub = versus_prior(ctx, count, "photo.taken", by="count")
+    if sub:
+        card["sub"] = sub
+    return card
 
 
 def _photos_busiest_day(ctx: FactContext) -> dict[str, Any] | None:
@@ -174,7 +256,8 @@ def _docs_total(ctx: FactContext) -> dict[str, Any] | None:
     return {
         "value": count,
         "headline": f"{plural(count, 'document')} archived",
-        "sub": "the filing cabinet never stood a chance",
+        "sub": versus_prior(ctx, count, "doc.added", by="count")
+        or "the filing cabinet never stood a chance",
     }
 
 
@@ -196,7 +279,8 @@ def _files_total(ctx: FactContext) -> dict[str, Any] | None:
     return {
         "value": count,
         "headline": f"{plural(count, 'file')} added to your cloud",
-        "sub": "synced, safe, and self-hosted",
+        "sub": versus_prior(ctx, count, "file.created", by="count")
+        or "synced, safe, and self-hosted",
     }
 
 
@@ -243,8 +327,10 @@ def _dns_blocked_total(ctx: FactContext) -> dict[str, Any] | None:
         "headline": f"{n:,} ads and trackers blocked",
     }
     _, total = ctx.store.totals(ctx.since, ctx.until, kind="dns.query")
-    if total:
-        card["sub"] = f"{blocked / total:.0%} of all DNS queries, swallowed by Pi-hole"
+    share = f"{blocked / total:.0%} of all DNS queries, swallowed by Pi-hole" if total else None
+    sub = versus_prior(ctx, blocked, "dns.blocked") or share
+    if sub:
+        card["sub"] = sub
     return card
 
 

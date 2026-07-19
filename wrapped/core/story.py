@@ -15,7 +15,7 @@ from typing import Any
 
 from wrapped.core.events import EventStore
 from wrapped.core.periods import month_window, on_this_day_windows, year_window
-from wrapped.facts import FACTS, FactContext, plural
+from wrapped.facts import FACTS, FactContext, PriorWindow, plural
 
 # Human nouns for event kinds, used in on-this-day summaries.
 _KIND_NOUNS = {
@@ -79,7 +79,9 @@ def build_story(
             since, until = year_window(period.year, tz)
         else:
             since, until = month_window(period.year, period.month, tz)
-        ctx = FactContext(store=store, since=since, until=until, tz=tz)
+        ctx = FactContext(
+            store=store, since=since, until=until, tz=tz, prior=_prior_window(period, tz)
+        )
         cards = []
         # Ascending rank, not list order — see FACTS for the shape of the arc.
         for fact in sorted(FACTS, key=lambda f: f.rank):
@@ -94,6 +96,27 @@ def build_story(
         "generated_at": now.isoformat(),
         "cards": cards,
     }
+
+
+def _prior_window(period: Period, tz: tzinfo) -> PriorWindow | None:
+    """The equivalent window one period back, for year-over-year copy.
+
+    A year is compared against the year before it, a month against the same
+    month a year earlier — seasons matter more than recency for a homelab
+    (December is always the photo-heavy one). Computed from the calendar
+    helpers rather than by subtracting days, so leap years line up.
+
+    Returns:
+        The earlier window, or ``None`` for on-this-day periods, which are
+        already a comparison across years.
+    """
+    if period.type == "year":
+        since, until = year_window(period.year - 1, tz)
+        return PriorWindow(since, until, str(period.year - 1))
+    if period.type == "month":
+        since, until = month_window(period.year - 1, period.month, tz)
+        return PriorWindow(since, until, f"{datetime(period.year - 1, period.month, 1):%B %Y}")
+    return None
 
 
 def _on_this_day_cards(
