@@ -253,6 +253,26 @@ html, body { overflow: hidden; }
 .sat-bl { bottom: 16%; left: 8%; animation-delay: 450ms; }
 .sat-br { bottom: 20%; right: 6%; animation-delay: 550ms; }
 
+/* Wide screens: satellites drift around the hero on an ellipse sized to
+   clear both the 46rem text column (inner edge) and the viewport (outer
+   edge, half the 15rem card max-width + margin). The offset transform
+   overrides the corner anchors; player.js only adds .sat--orbit when
+   motion paths are supported and reduced motion is off. */
+@media (min-width: 1200px) {
+  .sat--orbit {
+    offset-path: ellipse(calc(50% - 8.75rem) calc(50% - 5rem));
+    offset-rotate: 0deg;
+    animation:
+      hlwPop 0.5s ease both,
+      hlwOrbit 90s linear infinite;
+  }
+
+  @keyframes hlwOrbit {
+    from { offset-distance: 0%; }
+    to { offset-distance: 100%; }
+  }
+}
+
 .sat .k {
   font: 600 9px/1.4 var(--hw-font-mono);
   letter-spacing: 0.18em;
