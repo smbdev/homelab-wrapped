@@ -7,6 +7,11 @@
     <div class="hw-top-actions">
       {% if request.state.user %}<span class="hw-pill hw-pill--user">signed in as {{ request.state.user }}</span>{% endif %}
       {% if has_settings %}<a class="hw-pill" href="/settings">Settings</a>{% endif %}
+      {% if request.state.user %}
+      <form method="post" action="/logout" style="margin:0">
+        <button class="hw-pill" type="submit">Sign out</button>
+      </form>
+      {% endif %}
     </div>
   </header>
 
@@ -33,14 +38,40 @@
   {% endif %}
 
   <nav class="hw-recaps hw-rise hw-rise-3" aria-label="Saved recaps">
-    {% for s in stories %}
-    <a class="hw-recap{% if loop.first %} hw-recap--featured{% endif %}" href="/story/{{ s.id }}">
-      <span class="hw-kick">{% if loop.first %}<span class="hw-dot">●</span> Featured · {% endif %}{{ s.kind }}</span>
-      <h3>{{ s.label }}</h3>
-      <span class="meta">{{ s.n_cards }} · ~{{ s.minutes }} min</span>
+    <a class="hw-recap hw-recap--featured" href="/story/{{ featured.id }}">
+      <div>
+        <span class="hw-kick"><span class="hw-dot">●</span> Featured · {{ featured.kind }}</span>
+        <h3>{{ featured.label }}</h3>
+      </div>
+      <span class="meta">{{ featured.n_cards }} · ~{{ featured.minutes }} min</span>
       <span class="go" aria-hidden="true">→</span>
     </a>
-    {% endfor %}
+
+    {% if monthly %}
+    <a class="hw-recap" href="/story/{{ monthly.id }}">
+      <div><span class="hw-kick">monthly</span><h3>{{ monthly.label }}</h3></div>
+      <span class="meta">{{ monthly.n_cards }} · ~{{ monthly.minutes }} min</span>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+    {% else %}
+    <div class="hw-recap hw-recap--soon">
+      <div><span class="hw-kick">monthly</span><h3>{{ month_label }}</h3></div>
+      <span class="meta">builds itself on the 1st</span>
+    </div>
+    {% endif %}
+
+    {% if otd %}
+    <a class="hw-recap" href="/story/{{ otd.id }}">
+      <div><span class="hw-kick">on this day</span><h3>{{ otd.label | replace("On this day, ", "") }}</h3></div>
+      <span class="meta">{{ otd.n_cards }} · ~{{ otd.minutes }} min</span>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+    {% else %}
+    <div class="hw-recap hw-recap--soon">
+      <div><span class="hw-kick">on this day</span><h3>{{ today | title }}</h3></div>
+      <span class="meta">builds daily as history accrues</span>
+    </div>
+    {% endif %}
   </nav>
   {% else %}
   <section class="hw-hero hw-rise hw-rise-1">

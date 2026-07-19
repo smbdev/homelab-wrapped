@@ -108,21 +108,34 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
                     ticker.append(card["headline"])
         return {"stats": stats, "ticker": ticker}
 
+    def hub_slots(stories: list[dict]) -> dict:
+        """The hub's three bottom cards: featured recap + latest monthly +
+        latest on-this-day; a missing kind renders as a greyed placeholder."""
+        featured = stories[0] if stories else None
+        rest = [s for s in stories if s is not featured]
+        return {
+            "featured": featured,
+            "monthly": next((s for s in rest if s["kind"] == "monthly"), None),
+            "otd": next((s for s in rest if s["kind"] == "on this day"), None),
+        }
+
     has_settings = config_path is not None
+
+    def index_context() -> dict:
+        """Everything index.html needs — also used by the story-404 page."""
+        stories = story_index()
+        return {
+            "stories": stories,
+            "has_settings": has_settings,
+            "today": f"{datetime.now():%-d %b}".upper(),
+            "month_label": f"{datetime.now():%B}",
+            **hub_slots(stories),
+            **dashboard_extras(stories),
+        }
 
     @app.get("/", response_class=HTMLResponse)
     def index(request: Request) -> HTMLResponse:
-        stories = story_index()
-        return templates.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "stories": stories,
-                "has_settings": has_settings,
-                "today": f"{datetime.now():%-d %b}".upper(),
-                **dashboard_extras(stories),
-            },
-        )
+        return templates.TemplateResponse(request, "index.html", index_context())
 
     @app.get("/story/{period_id}", response_class=HTMLResponse)
     def story_page(request: Request, period_id: str) -> HTMLResponse:
@@ -132,7 +145,7 @@ def create_app(stories_dir: str | Path, config_path: str | Path | None = None) -
             return templates.TemplateResponse(
                 request,
                 "index.html",
-                {"stories": story_index(), "missing": period_id, "has_settings": has_settings},
+                {**index_context(), "missing": period_id},
                 status_code=404,
             )
         return templates.TemplateResponse(request, "story.html", {"story": story})
