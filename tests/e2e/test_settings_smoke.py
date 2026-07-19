@@ -20,9 +20,9 @@ def test_long_hint_marquee_scrolls_when_clipped(page, server_url):
     page.set_viewport_size({"width": 420, "height": 900})
     page.goto(f"{server_url}/settings")
     page.get_by_role("button", name="Nextcloud").click()
-    page.wait_for_selector(".hw-hint-wrap.scroll")  # overflow detection is a rAF away
-    wrap = page.locator(".hw-hint-wrap.scroll").filter(has=page.locator("[name=app_password]"))
-    assert wrap.locator(".hw-hint-track > span").count() == 2  # doubled for a seamless loop
+    page.wait_for_selector(".hw-ph-wrap.scroll")  # overflow detection is a rAF away
+    wrap = page.locator(".hw-ph-wrap.scroll").filter(has=page.locator("[name=app_password]"))
+    assert wrap.locator(".hw-ph-track > span").count() == 2  # doubled for a seamless loop
     field = wrap.locator("input")
     assert field.get_attribute("type") == "password"
     assert "app password" in field.get_attribute("aria-label").lower()
