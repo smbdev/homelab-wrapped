@@ -408,6 +408,33 @@ input, select { outline: none; }
 
 .hw-recap:hover .go { transform: translateX(3px); }
 
+/* ---------- archive strip (earlier recaps) ---------- */
+
+.hw-archive {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -1.6rem 0 3rem;
+}
+
+.hw-archive .hw-kick { margin-right: 0.6rem; color: var(--hw-text-faint); }
+
+.hw-archive a {
+  border: 1px solid var(--hw-border);
+  border-radius: var(--hw-r-pill);
+  color: var(--hw-text-muted);
+  font: 500 12px/1 var(--hw-font-mono);
+  padding: 0.65em 1.1em;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+
+.hw-archive a:hover {
+  border-color: rgba(230, 50, 50, 0.7);
+  background: rgba(230, 50, 50, 0.12);
+  color: var(--hw-accent-soft);
+}
+
 /* ---------- panels (settings, auth) ---------- */
 
 .hw-panel {
