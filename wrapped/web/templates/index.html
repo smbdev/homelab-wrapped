@@ -37,7 +37,7 @@
     <a class="hw-recap{% if loop.first %} hw-recap--featured{% endif %}" href="/story/{{ s.id }}">
       <span class="hw-kick">{% if loop.first %}<span class="hw-dot">●</span> Featured · {% endif %}{{ s.kind }}</span>
       <h3>{{ s.label }}</h3>
-      <span class="meta">{{ s.n_cards }} chapters · ~{{ s.minutes }} min</span>
+      <span class="meta">{{ s.n_cards }} · ~{{ s.minutes }} min</span>
       <span class="go" aria-hidden="true">→</span>
     </a>
     {% endfor %}
