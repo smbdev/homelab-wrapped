@@ -513,9 +513,9 @@ input, select { outline: none; }
 /* Overlay placeholder that marquee-scrolls when the hint outgrows the input —
    native placeholders clip and can't animate. Hidden once the field has a
    value (the input keeps a " " placeholder so :placeholder-shown stays live). */
-.hw-hint-wrap { position: relative; }
+.hw-ph-wrap { position: relative; }
 
-.hw-hint {
+.hw-ph {
   position: absolute;
   inset: 1px;
   display: flex;
@@ -529,22 +529,22 @@ input, select { outline: none; }
   font: 400 13px/1.4 var(--hw-font-mono);
 }
 
-.hw-hint-wrap input:not(:placeholder-shown) ~ .hw-hint { display: none; }
+.hw-ph-wrap input:not(:placeholder-shown) ~ .hw-ph { display: none; }
 
-.hw-hint-track { display: inline-flex; white-space: nowrap; }
+.hw-ph-track { display: inline-flex; white-space: nowrap; }
 
-.hw-hint-wrap.scroll .hw-hint-track > span { padding-right: 3ch; }
+.hw-ph-wrap.scroll .hw-ph-track > span { padding-right: 3ch; }
 
-.hw-hint-wrap.scroll .hw-hint-track {
-  animation: hw-hint-marquee 14s linear infinite;
+.hw-ph-wrap.scroll .hw-ph-track {
+  animation: hw-ph-marquee 14s linear infinite;
 }
 
-@keyframes hw-hint-marquee {
+@keyframes hw-ph-marquee {
   to { transform: translateX(-50%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hw-hint-wrap.scroll .hw-hint-track { animation: none; }
+  .hw-ph-wrap.scroll .hw-ph-track { animation: none; }
 }
 
 .hw-field input:focus-visible, .hw-field select:focus-visible {

@@ -174,16 +174,16 @@
   // overflows (second copy makes the -50% keyframe loop seamlessly).
   function hintedInput(key, hintText) {
     const wrap = document.createElement("div");
-    wrap.className = "hw-hint-wrap";
+    wrap.className = "hw-ph-wrap";
     const input = document.createElement("input");
     input.name = key;
     input.placeholder = " "; // keeps :placeholder-shown live; the overlay is the hint
     input.setAttribute("aria-label", hintText);
     if (key.includes("key") || key.includes("password")) input.type = "password";
     const hint = document.createElement("span");
-    hint.className = "hw-hint";
+    hint.className = "hw-ph";
     const track = document.createElement("span");
-    track.className = "hw-hint-track";
+    track.className = "hw-ph-track";
     const text = document.createElement("span");
     text.textContent = hintText;
     track.append(text);
