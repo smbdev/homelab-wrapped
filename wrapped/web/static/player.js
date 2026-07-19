@@ -79,14 +79,21 @@ function satellites(card) {
     }
   }
   if (!sats.length) return null;
+  // Two per slide on opposite corners, rotating through the pool so each
+  // satellite appears once across the deck — not the same four everywhere.
+  const bigs = story.cards.filter((c) => c.template === "big_number" && !c.private);
+  const idx = Math.max(0, bigs.indexOf(card));
+  const chosen = sats.slice(idx * 2, idx * 2 + 2);
+  if (!chosen.length) return null;
+  const corners = idx % 2 ? ["sat-tr", "sat-bl"] : ["sat-tl", "sat-br"];
   const wrap = el("div", "sats");
   wrap.setAttribute("aria-hidden", "true");
-  for (const s of sats.slice(0, 4)) {
-    const node = el("div", "sat");
+  chosen.forEach((s, i) => {
+    const node = el("div", `sat ${corners[i]}`);
     node.append(el("div", "k", s.k), el("div", "v", s.v));
     if (s.s) node.append(el("div", "s", s.s));
     wrap.append(node);
-  }
+  });
   return wrap;
 }
 
