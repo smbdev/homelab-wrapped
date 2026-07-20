@@ -206,21 +206,37 @@ def _human_bytes(n: float) -> str:
     return f"{num:,} {unit}"
 
 
-def _net_deltas(ctx: FactContext) -> dict[str, float]:
-    """Total bytes moved per container across the window.
+def _direction(component: str) -> Callable[[Any], float]:
+    """Read one direction off a net.sample: total, or the rx/tx half in meta."""
+    if component == "total":
+        return lambda e: e.value
+    return lambda e: float((e.meta or {}).get(component) or 0.0)
+
+
+def _net_deltas(ctx: FactContext, component: str = "total") -> dict[str, float]:
+    """Bytes moved per container across the window, in one direction.
 
     Samples are cumulative counters; a counter that shrank means the
     container restarted, so that sample contributes its own value rather
     than a negative delta.
+
+    Args:
+        component: ``"total"`` for the whole sample value, or ``"rx"`` /
+            ``"tx"`` to walk the per-direction counters the connector stores
+            in ``meta``. Samples missing that key contribute nothing, so an
+            event cache written before the split existed degrades to zero
+            rather than lying.
     """
+    read = _direction(component)
     last: dict[str, float] = {}
     moved: dict[str, float] = {}
     for e in ctx.store.events(ctx.since, ctx.until, kind="net.sample"):
         name = e.entity or "unknown"
+        current = read(e)
         prev = last.get(name)
         if prev is not None:
-            moved[name] = moved.get(name, 0.0) + (e.value - prev if e.value >= prev else e.value)
-        last[name] = e.value
+            moved[name] = moved.get(name, 0.0) + (current - prev if current >= prev else current)
+        last[name] = current
     return {k: v for k, v in moved.items() if v > 0}
 
 
@@ -234,11 +250,21 @@ def _network_total(ctx: FactContext) -> dict[str, Any] | None:
     else:
         value, unit = round(total / 1e9), "GB"
     days = max((ctx.until - ctx.since).days, 1)
-    return {
+    card: dict[str, Any] = {
         "value": value,
         "headline": f"{value:,} {unit} moved by your rack",
         "sub": f"≈ {_human_bytes(total / days)} a day through your containers",
     }
+    # The connector has always stored the rx/tx split in meta; splitting the
+    # hero number into "down" and "up" is the one thing it's obviously for.
+    down = sum(_net_deltas(ctx, "rx").values())
+    up = sum(_net_deltas(ctx, "tx").values())
+    if down or up:
+        card["sats"] = [
+            {"k": "downloaded", "v": _human_bytes(down)},
+            {"k": "uploaded", "v": _human_bytes(up)},
+        ]
+    return card
 
 
 def _network_by_service(ctx: FactContext) -> dict[str, Any] | None:
