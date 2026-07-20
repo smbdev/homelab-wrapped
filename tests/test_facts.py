@@ -62,7 +62,12 @@ def test_private_facts_are_the_ones_naming_real_world_things():
     marking it private would silently make it exportable as a PNG.
     """
     private = {f.id for f in FACTS if f.private}
-    assert private == {"docs.top_senders", "files.top_folders", "dns.top_blocked"}
+    assert private == {
+        "docs.top_senders",
+        "docs.top_tags",
+        "files.top_folders",
+        "dns.top_blocked",
+    }
 
 
 def test_top_shows_stays_shareable():
