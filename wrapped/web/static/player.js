@@ -59,12 +59,22 @@ function withEyebrow(root, card) {
   return root;
 }
 
-/* Satellite mini-cards around a big number, derived from OTHER public cards
-   in the SAME category ("files.total" ↔ "files.top_folders") — a corner card
-   must relate to the screen it decorates, never a random other fact. */
+/* Satellite mini-cards around a big number.
+
+   A fact can hand us its own via card.sats — used where the detail lives
+   inside the hero number itself (network down/up) or where the category has
+   no sibling card to borrow from. Otherwise they're derived from OTHER
+   public cards in the SAME category ("files.total" ↔ "files.top_folders") —
+   a corner card must relate to the screen it decorates, never a random
+   other fact. */
 function satellites(card) {
   const cat = (card.fact || "").split(".")[0];
   if (!cat) return null;
+  const sats = card.sats?.length ? card.sats.slice() : derivedSats(card, cat);
+  return sats.length ? renderSats(card, sats) : null;
+}
+
+function derivedSats(card, cat) {
   const sats = [];
   for (const c of story.cards) {
     if (c === card || c.private) continue;
@@ -85,7 +95,10 @@ function satellites(card) {
       if (day) sats.push({ k: "busiest day", v: day, s: `${fmt(n)} events` });
     }
   }
-  if (!sats.length) return null;
+  return sats;
+}
+
+function renderSats(card, sats) {
   // Two at most; corner classes are the static fallback, and on wide screens
   // with motion allowed they slowly orbit the hero on an ellipse instead
   // (evenly phased via negative delays into the shared orbit keyframes).

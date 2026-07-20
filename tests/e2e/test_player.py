@@ -55,7 +55,7 @@ def test_swipe_navigation(page, server_url):
 def test_progress_segments_track_and_jump(page, server_url):
     page.goto(f"{server_url}/story/2026")
     segs = page.locator(".progress .seg")
-    assert segs.count() == 8  # intro + 5 facts + summary + outro
+    assert segs.count() == 9  # intro + 6 facts + summary + outro
     page.keyboard.press("ArrowRight")
     assert "current" in segs.nth(1).get_attribute("class")
     assert "done" in segs.nth(0).get_attribute("class")
@@ -82,9 +82,9 @@ def test_top_list_renders_items(page, server_url):
 
 def test_heatmap_renders_levelled_cells(page, server_url):
     page.goto(f"{server_url}/story/2026")
-    page.keyboard.press("End")
-    page.keyboard.press("ArrowLeft")  # summary slide
-    page.keyboard.press("ArrowLeft")  # heatmap
+    for _ in range(5):  # forward to the heatmap — counting back from the end
+        page.keyboard.press("ArrowRight")  # breaks whenever a card is appended
+    assert "day by day" in page.locator(".stage").inner_text()
     assert page.locator(".heatmap .cell").count() > 150  # Jan..Jun of grid days
     assert page.locator(".heatmap .l4").count() >= 1  # the 12-photo day peaks
 
@@ -101,6 +101,29 @@ def test_summary_slide_condenses_the_wrap(page, server_url):
     assert page.locator(".bento .cell.hero").count() == 1
     # private cards never reach the summary
     assert "132 photos" not in stage.inner_text()
+
+
+def test_card_supplied_satellites_render(page, server_url):
+    """network.total carries its own down/up satellites instead of borrowing."""
+    page.goto(f"{server_url}/story/2026")
+    for _ in range(6):  # intro, then six fact cards
+        page.keyboard.press("ArrowRight")
+    stage = page.locator(".stage")
+    assert "moved by your rack" in stage.inner_text()
+    sats = stage.locator(".sat")
+    assert sats.count() == 2
+    text = " ".join(sats.nth(i).inner_text() for i in range(2)).lower()
+    assert "downloaded" in text and "28 gb" in text
+    assert "uploaded" in text and "6 gb" in text
+
+
+def test_satellites_still_derive_from_sibling_cards(page, server_url):
+    """The borrow path must keep working for cards that supply nothing."""
+    page.goto(f"{server_url}/story/2026")
+    page.keyboard.press("ArrowRight")  # media.total_hours, borrows from top shows
+    sats = page.locator(".stage .sat")
+    assert sats.count() == 2
+    assert "The Bear" in " ".join(sats.nth(i).inner_text() for i in range(2))
 
 
 def test_private_card_excluded_from_export(page, server_url):

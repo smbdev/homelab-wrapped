@@ -60,6 +60,19 @@ RICH_STORY = {
             "headline": "Your year, day by day",
             "data": {"2026-01-05": 3, "2026-01-06": 1, "2026-06-14": 12},
         },
+        # Carries its own satellites instead of borrowing from a sibling card.
+        {
+            "template": "big_number",
+            "fact": "network.total",
+            "private": False,
+            "value": 34,
+            "headline": "34 GB moved by your rack",
+            "sub": "≈ 92 MB a day through your containers",
+            "sats": [
+                {"k": "downloaded", "v": "28 GB"},
+                {"k": "uploaded", "v": "6 GB"},
+            ],
+        },
     ],
 }
 

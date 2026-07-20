@@ -67,11 +67,19 @@ def test_vanished_container_does_not_kill_collect(fake_docker, monkeypatch):
     assert [e.entity for e in events if e.kind == "net.sample"] == ["Immich"]
 
 
-def _store_with_samples(samples):
+def _store_with_samples(samples, split=None):
+    """Samples are ``(name, ts, total)``; ``split`` optionally gives (rx, tx) per row."""
     store = EventStore(":memory:")
     store.add_events(
-        Event(source="docker", kind="net.sample", ts=ts, entity=name, value=float(v))
-        for name, ts, v in samples
+        Event(
+            source="docker",
+            kind="net.sample",
+            ts=ts,
+            entity=name,
+            value=float(v),
+            meta=({"rx": split[i][0], "tx": split[i][1]} if split else {}),
+        )
+        for i, (name, ts, v) in enumerate(samples)
     )
     return store
 
@@ -98,6 +106,42 @@ def test_network_total_sums_deltas_and_survives_counter_reset():
     card = _network_total(_ctx(store))
     assert card["value"] == 2.4
     assert card["headline"].startswith("2.4 TB")
+
+
+def test_network_total_splits_down_and_up_into_satellites():
+    day = lambda n: datetime(2026, 1, n, tzinfo=UTC)  # noqa: E731
+    store = _store_with_samples(
+        [("jellyfin", day(1), 0), ("jellyfin", day(2), 5e12)],
+        split=[(0, 0), (4e12, 1e12)],  # 4 TB down, 1 TB up
+    )
+    card = _network_total(_ctx(store))
+    assert card["sats"] == [
+        {"k": "downloaded", "v": "4.0 TB"},
+        {"k": "uploaded", "v": "1.0 TB"},
+    ]
+
+
+def test_direction_satellites_survive_a_counter_reset():
+    """Restarts must not make a direction negative, same as the total."""
+    day = lambda n: datetime(2026, 1, n, tzinfo=UTC)  # noqa: E731
+    store = _store_with_samples(
+        [("a", day(1), 0), ("a", day(2), 3e12), ("a", day(3), 1e12)],
+        split=[(0, 0), (2e12, 1e12), (5e11, 5e11)],  # restart on day 3
+    )
+    card = _network_total(_ctx(store))
+    assert card["sats"] == [
+        {"k": "downloaded", "v": "2.5 TB"},  # 2 TB + 0.5 TB, not 2 TB - 1.5 TB
+        {"k": "uploaded", "v": "1.5 TB"},
+    ]
+
+
+def test_no_direction_satellites_without_the_meta_split():
+    """An event cache written before rx/tx existed degrades to no satellites."""
+    day = lambda n: datetime(2026, 1, n, tzinfo=UTC)  # noqa: E731
+    store = _store_with_samples([("a", day(1), 0), ("a", day(2), 5e12)])
+    card = _network_total(_ctx(store))
+    assert "sats" not in card
+    assert card["value"] == 5.0  # the hero number still works
 
 
 def test_network_total_needs_at_least_a_gigabyte():
