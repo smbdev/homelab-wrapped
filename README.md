@@ -131,7 +131,7 @@ Three facts ship private, because their cards name real-world things rather than
 | **Where they all went** | names your folders, which are often more revealing than the files |
 | **Most-blocked domains** | shows what your devices talked to — enough to infer the gadgets you own |
 
-Everything else is exportable, including **your top shows**. That one's deliberate: what you watched is taste rather than identity, and it's the card most people actually want to share.
+Everything else is exportable.
 
 Changing this is one keyword. Facts live in `wrapped/facts/__init__.py`:
 
