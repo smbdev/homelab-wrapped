@@ -55,6 +55,27 @@ def test_all_facts_none_on_empty_store(store):
     assert all(f.compute(c) is None for f in FACTS)
 
 
+def test_private_facts_are_the_ones_naming_real_world_things():
+    """Cards that name people, folders or domains stay off the record.
+
+    Pinned deliberately: adding a fact that names real-world things without
+    marking it private would silently make it exportable as a PNG.
+    """
+    private = {f.id for f in FACTS if f.private}
+    assert private == {"docs.top_senders", "files.top_folders", "dns.top_blocked"}
+
+
+def test_top_shows_stays_shareable():
+    """The flagship card — taste, not identity — must not drift to private."""
+    assert fact("media.top_shows").private is False
+
+
+def test_aggregate_totals_are_never_private():
+    """A bare number leaks nothing, so it should always be exportable."""
+    totals = ["media.total_hours", "photos.total", "files.total", "docs.total"]
+    assert not any(fact(f).private for f in totals)
+
+
 def test_fact_ranks_are_unique():
     """Two facts sharing a rank makes their order arbitrary — usually a copy-paste."""
     ranks = [f.rank for f in FACTS]
