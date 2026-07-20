@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, tzinfo
+from datetime import UTC, datetime, tzinfo
 from typing import Any
 
 from wrapped.core.events import EventStore, busiest_day, longest_streak
@@ -213,12 +213,35 @@ def _direction(component: str) -> Callable[[Any], float]:
     return lambda e: float((e.meta or {}).get(component) or 0.0)
 
 
+def _counter_deltas(
+    ctx: FactContext, kind: str, read: Callable[[Any], float] | None = None
+) -> dict[str, float]:
+    """Consumption per container across the window, from cumulative samples.
+
+    Docker reports bytes moved and CPU time as counters that only ever climb,
+    so what happened *during* a window is the sum of the gaps between
+    consecutive samples. A counter that shrank means the container restarted,
+    so that sample contributes its own value rather than a negative delta.
+
+    Args:
+        kind: Sample kind to walk, e.g. ``"net.sample"``.
+        read: Pulls the counter off an event; defaults to ``Event.value``.
+    """
+    read = read or (lambda e: e.value)
+    last: dict[str, float] = {}
+    moved: dict[str, float] = {}
+    for e in ctx.store.events(ctx.since, ctx.until, kind=kind):
+        name = e.entity or "unknown"
+        current = read(e)
+        prev = last.get(name)
+        if prev is not None:
+            moved[name] = moved.get(name, 0.0) + (current - prev if current >= prev else current)
+        last[name] = current
+    return {k: v for k, v in moved.items() if v > 0}
+
+
 def _net_deltas(ctx: FactContext, component: str = "total") -> dict[str, float]:
     """Bytes moved per container across the window, in one direction.
-
-    Samples are cumulative counters; a counter that shrank means the
-    container restarted, so that sample contributes its own value rather
-    than a negative delta.
 
     Args:
         component: ``"total"`` for the whole sample value, or ``"rx"`` /
@@ -227,17 +250,21 @@ def _net_deltas(ctx: FactContext, component: str = "total") -> dict[str, float]:
             event cache written before the split existed degrades to zero
             rather than lying.
     """
-    read = _direction(component)
-    last: dict[str, float] = {}
-    moved: dict[str, float] = {}
-    for e in ctx.store.events(ctx.since, ctx.until, kind="net.sample"):
-        name = e.entity or "unknown"
-        current = read(e)
-        prev = last.get(name)
-        if prev is not None:
-            moved[name] = moved.get(name, 0.0) + (current - prev if current >= prev else current)
-        last[name] = current
-    return {k: v for k, v in moved.items() if v > 0}
+    return _counter_deltas(ctx, "net.sample", _direction(component))
+
+
+def _latest_per_entity(ctx: FactContext, kind: str) -> dict[str, float]:
+    """Most recent sample per container for a gauge kind (memory, age).
+
+    Gauges describe a moment rather than accumulating, so only the newest
+    sample in the window is meaningful. Events arrive oldest-first, so the
+    last write per entity wins.
+    """
+    out: dict[str, float] = {}
+    for e in ctx.store.events(ctx.since, ctx.until, kind=kind):
+        if e.entity:
+            out[e.entity] = e.value
+    return out
 
 
 def _network_total(ctx: FactContext) -> dict[str, Any] | None:
@@ -390,10 +417,44 @@ def _system_containers(ctx: FactContext) -> dict[str, Any] | None:
     if latest is None or latest.value < 1:
         return None
     n = int(latest.value)
-    return {
+    card: dict[str, Any] = {
         "value": n,
         "headline": f"{plural(n, 'container')} kept running",
         "sub": "one very reliable box",
+    }
+    # The system category has no sibling card to borrow satellites from, so
+    # this one carries what the containers were actually doing.
+    sats = []
+    hours = sum(_counter_deltas(ctx, "system.cpu").values()) / 1e9 / 3600
+    if hours >= 1:
+        sats.append({"k": "cpu time burned", "v": plural(round(hours), "hour")})
+    memory = sum(_latest_per_entity(ctx, "system.memory").values())
+    if memory:
+        sats.append({"k": "memory in use", "v": _human_bytes(memory)})
+    if sats:
+        card["sats"] = sats
+    return card
+
+
+def _system_oldest_container(ctx: FactContext) -> dict[str, Any] | None:
+    """The container that's been alive longest, by Docker's creation stamp.
+
+    Deliberately "old" rather than "uptime": restarting a container leaves
+    its creation stamp alone, so this measures how long it has existed, not
+    how long the process has been up. Claiming uptime would be wrong.
+    """
+    started = _latest_per_entity(ctx, "system.container_started")
+    if not started:
+        return None
+    name, epoch = min(started.items(), key=lambda kv: kv[1])
+    created = datetime.fromtimestamp(epoch, tz=UTC)
+    days = (ctx.until - created).days
+    if days < 1:
+        return None
+    return {
+        "value": days,
+        "headline": f"{plural(days, 'day')} old",
+        "sub": f"{name} is your longest-serving container, born {created:%-d %B %Y}",
     }
 
 
@@ -462,6 +523,7 @@ FACTS: list[Fact] = [
     Fact("docs.top_tags", "top_list", _docs_top_tags, rank=85, private=True),
     Fact("storage.growth", "big_number", _storage_growth, rank=90),
     Fact("system.containers", "big_number", _system_containers, rank=100),
+    Fact("system.oldest_container", "big_number", _system_oldest_container, rank=105),
     Fact("network.total", "big_number", _network_total, rank=110),
     Fact("network.by_service", "comparison", _network_by_service, rank=120),
     Fact("dns.blocked_total", "big_number", _dns_blocked_total, rank=130),

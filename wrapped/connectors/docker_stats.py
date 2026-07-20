@@ -1,10 +1,17 @@
 """Docker stats connector: network traffic + container counts from the socket.
 
 Reads the same read-only ``/var/run/docker.sock`` mount the Settings scan
-uses — no credentials, nothing leaves the machine. Each sync stores one
-*sample* per running container (cumulative rx/tx byte counters) plus one
-container-count sample; the network facts turn successive samples into
-daily deltas, so restarts (counter resets) never produce negative traffic.
+uses — no credentials, nothing leaves the machine.
+
+Each sync stores, per running container, a network sample (cumulative rx/tx
+byte counters), a CPU-time sample (also cumulative), a memory gauge and the
+container's creation stamp, plus one container-count sample. The facts layer
+turns successive counter samples into deltas, so restarts (counter resets)
+never produce negative usage.
+
+The stats API call was already being made for network bytes and returns CPU
+and memory in the same payload, so the extra kinds cost no additional
+requests — only rows: four samples per container per sync instead of one.
 """
 
 from __future__ import annotations
@@ -66,6 +73,25 @@ def _net_totals(stats: dict) -> tuple[int, int]:
     return rx, tx
 
 
+def _cpu_nanoseconds(stats: dict) -> float | None:
+    """Cumulative CPU time this container has used, in nanoseconds.
+
+    Not a percentage: a one-shot stats read has no previous sample to
+    compare against (``precpu_stats`` comes back zeroed), so an instant
+    CPU% is not computable here. The raw counter is better anyway — the
+    facts layer diffs it into "hours of CPU burned this year", which is a
+    total worth putting on a card rather than a gauge worth graphing.
+    """
+    total = ((stats.get("cpu_stats") or {}).get("cpu_usage") or {}).get("total_usage")
+    return float(total) if total else None
+
+
+def _memory_bytes(stats: dict) -> float | None:
+    """Current memory in use, or None when the runtime didn't report it."""
+    usage = (stats.get("memory_stats") or {}).get("usage")
+    return float(usage) if usage else None
+
+
 class DockerStatsConnector:
     """Samples per-container network counters and the running-container count."""
 
@@ -120,6 +146,25 @@ class DockerStatsConnector:
                 value=float(rx + tx),
                 meta={"rx": rx, "tx": tx},
             )
+            cpu = _cpu_nanoseconds(stats)
+            if cpu is not None:
+                yield Event(source="docker", kind="system.cpu", ts=until, entity=name, value=cpu)
+            memory = _memory_bytes(stats)
+            if memory is not None:
+                yield Event(
+                    source="docker", kind="system.memory", ts=until, entity=name, value=memory
+                )
+            created = c.get("Created")
+            if created:
+                # The creation stamp itself, not an age — an absolute value
+                # stays true whichever window a recap later asks about.
+                yield Event(
+                    source="docker",
+                    kind="system.container_started",
+                    ts=until,
+                    entity=name,
+                    value=float(created),
+                )
         yield Event(
             source="docker",
             kind="system.containers",
@@ -132,6 +177,7 @@ class DockerStatsConnector:
             FactSpec("network.total", "Total bytes moved by your containers"),
             FactSpec("network.by_service", "Traffic per service"),
             FactSpec("system.containers", "Running container count"),
+            FactSpec("system.oldest_container", "Your longest-serving container"),
         ]
 
 
