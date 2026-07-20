@@ -18,7 +18,7 @@ Your homelab already knows what you watched, photographed, and collected this ye
 - **Privacy-first, provable.** Zero outbound network calls — enforced by a test fixture that fails the suite if any code opens an unexpected socket. Optional extras like email use *your* SMTP server.
 - **Read-only.** Connectors use the least-privileged access each service supports. Nothing is ever written to your services.
 - **Lean.** Five runtime dependencies, no build step, idles near zero. Happy on a Raspberry Pi.
-- **Share on your terms.** Export cards as PNG rendered client-side in your browser; facts marked private are visibly excluded from exports.
+- **Share on your terms.** Export cards as PNG rendered client-side in your browser; cards that name real-world things are [off the record](#sharing-and-redaction) by default and visibly excluded.
 
 ## Quick start
 
@@ -116,6 +116,32 @@ How it works: `sync` reads each service into a local SQLite event cache, `build`
 | **Generic CSV/JSON** | any local file you export | anything you like |
 
 Your service missing? Export it to CSV and use the generic connector today — or add a real one: a connector is one Python file with three methods, and the [connector guide](docs/connector-guide.md) walks you through it with a worked example. This is the best way to contribute.
+
+## Sharing and redaction
+
+Any card can be saved as a PNG from the end of the story — drawn in your browser, never uploaded. Some cards are **off the record**: they still play in your recap, because it's your data and you should see it, but they can't be exported, they never appear on the summary card, and they're skipped as satellites.
+
+You'll see them greyed out in the export list with an *off the record* chip, so you can tell what was held back instead of wondering.
+
+Three facts ship private, because their cards name real-world things rather than reporting a number:
+
+| Card | Why |
+|---|---|
+| **Who sent all that paper** | names real correspondents from your post |
+| **Where they all went** | names your folders, which are often more revealing than the files |
+| **Most-blocked domains** | shows what your devices talked to — enough to infer the gadgets you own |
+
+Everything else is exportable, including **your top shows**. That one's deliberate: what you watched is taste rather than identity, and it's the card most people actually want to share.
+
+Changing this is one keyword. Facts live in `wrapped/facts/__init__.py`:
+
+```python
+Fact("dns.top_blocked", "top_list", _dns_top_blocked, rank=140, private=True)
+```
+
+Drop `private=True` to make a card shareable, or add it to hold one back. Rebuild the story afterwards (`wrapped build`, or just restart the container) — the flag is baked into the story JSON when it's built.
+
+The rule of thumb when adding your own fact: picture the exported image on someone else's screen. A bare total leaks nothing. A named list usually does.
 
 ## Contributing
 

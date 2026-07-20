@@ -369,7 +369,17 @@ class Fact:
         rank: Position in the story. Cards are emitted in ascending rank, not
             in list order, so a fact can be added anywhere in ``FACTS`` and
             still land in the right beat of the recap. See :data:`FACTS`.
-        private: Private facts render locally but are stripped from exports.
+        private: Off the record. The card still renders in the player — you
+            can see your own data — but it can't be exported as a PNG, it
+            never feeds the summary card, and it's skipped as a satellite.
+            The export list shows it greyed with an "off the record" chip, so
+            the redaction is visible rather than silent.
+
+            Mark a fact private when its card names **specific real-world
+            things** rather than reporting a number: people who send you post,
+            folder names, domains your devices talked to. The test is what a
+            stranger learns from the image alone. Aggregate totals are safe;
+            named lists usually aren't.
     """
 
     id: str
@@ -396,21 +406,26 @@ class Fact:
 # ponytail: static ranks, not data-driven scoring — an "impressiveness"
 # score per card would let a monster number promote itself to the finale;
 # add that if a fixed order proves boring across real homelabs.
+#
+# Three facts are private=True: the ones whose cards name real-world things
+# (correspondents, folder names, blocked domains) rather than reporting a
+# number. media.top_shows is deliberately NOT private — it's the flagship
+# shareable card, and what you watched is taste rather than identity.
 FACTS: list[Fact] = [
     Fact("media.total_hours", "big_number", _media_total_hours, rank=10),
     Fact("media.top_shows", "top_list", _media_top_shows, rank=20),
     Fact("photos.total", "big_number", _photos_total, rank=30),
     Fact("photos.busiest_day", "superlative", _photos_busiest_day, rank=40),
     Fact("files.total", "big_number", _files_total, rank=50),
-    Fact("files.top_folders", "top_list", _files_top_folders, rank=60),
+    Fact("files.top_folders", "top_list", _files_top_folders, rank=60, private=True),
     Fact("docs.total", "big_number", _docs_total, rank=70),
-    Fact("docs.top_senders", "top_list", _docs_top_senders, rank=80),
+    Fact("docs.top_senders", "top_list", _docs_top_senders, rank=80, private=True),
     Fact("storage.growth", "big_number", _storage_growth, rank=90),
     Fact("system.containers", "big_number", _system_containers, rank=100),
     Fact("network.total", "big_number", _network_total, rank=110),
     Fact("network.by_service", "comparison", _network_by_service, rank=120),
     Fact("dns.blocked_total", "big_number", _dns_blocked_total, rank=130),
-    Fact("dns.top_blocked", "top_list", _dns_top_blocked, rank=140),
+    Fact("dns.top_blocked", "top_list", _dns_top_blocked, rank=140, private=True),
     Fact("activity.streak", "streak", _activity_streak, rank=150),
     Fact("activity.by_day", "heatmap", _activity_heatmap, rank=160),
 ]
