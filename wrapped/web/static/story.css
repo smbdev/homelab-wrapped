@@ -237,30 +237,31 @@ html, body { overflow: hidden; }
 .sat {
   position: absolute;
   z-index: 1;
-  min-width: 10rem;
-  max-width: 15rem;
+  min-width: 15rem;
+  max-width: 22.5rem;
   text-align: left;
   background: rgba(12, 12, 14, 0.75);
   border: 1px solid var(--hw-border);
   border-radius: var(--hw-r-row);
-  padding: 0.8rem 1rem;
+  padding: 1.2rem 1.5rem;
   box-shadow: var(--hw-shadow-card);
   animation: hlwPop 0.5s ease both;
 }
 
-.sat-tl { top: 14%; left: 6%; animation-delay: 250ms; }
-.sat-tr { top: 20%; right: 7%; animation-delay: 350ms; }
-.sat-bl { bottom: 16%; left: 8%; animation-delay: 450ms; }
-.sat-br { bottom: 20%; right: 6%; animation-delay: 550ms; }
+.sat-tl { top: 15%; left: 4%; animation-delay: 250ms; }
+.sat-tr { top: 21%; right: 5%; animation-delay: 350ms; }
+.sat-bl { bottom: 17%; left: 6%; animation-delay: 450ms; }
+.sat-br { bottom: 21%; right: 4%; animation-delay: 550ms; }
 
-/* Wide screens: satellites drift around the hero on an ellipse sized to
-   clear both the 46rem text column (inner edge) and the viewport (outer
-   edge, half the 15rem card max-width + margin). The offset transform
-   overrides the corner anchors; player.js only adds .sat--orbit when
-   motion paths are supported and reduced motion is off. */
+/* Wide screens: satellites drift around the hero on an ellipse. The radii
+   keep the outer edge inside the viewport (half a 15rem typical card plus
+   margin) while sitting closer in than the card width alone would put them,
+   so the orbit reads as circling the number rather than hugging the frame.
+   The offset transform overrides the corner anchors; player.js only adds
+   .sat--orbit when motion paths are supported and reduced motion is off. */
 @media (min-width: 1200px) {
   .sat--orbit {
-    offset-path: ellipse(calc(50% - 8.75rem) calc(50% - 5rem));
+    offset-path: ellipse(calc(50% - 14rem) calc(50% - 7rem));
     offset-rotate: 0deg;
     animation:
       hlwPop 0.5s ease both,
@@ -274,14 +275,14 @@ html, body { overflow: hidden; }
 }
 
 .sat .k {
-  font: 600 9px/1.4 var(--hw-font-mono);
+  font: 600 13px/1.4 var(--hw-font-mono);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--hw-accent-soft);
 }
 
-.sat .v { font: 600 16px/1.3 var(--hw-font-display); color: var(--hw-text); }
-.sat .s { font: 400 10px/1.5 var(--hw-font-mono); color: var(--hw-text-faint); }
+.sat .v { font: 600 24px/1.3 var(--hw-font-display); color: var(--hw-text); }
+.sat .s { font: 400 15px/1.5 var(--hw-font-mono); color: var(--hw-text-faint); }
 
 @media (max-width: 900px) {
   .sats {
