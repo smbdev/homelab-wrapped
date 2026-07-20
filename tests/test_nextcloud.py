@@ -58,8 +58,8 @@ def test_collect_maps_types_windows_and_folders(fake_api):
     created = [e for e in events if e.kind == "file.created"]
     assert [e.entity for e in created] == ["cat.jpg", "notes.md"]  # 2025 file windowed out
     assert [e.entity_group for e in created] == ["Photos", "/"]
-    assert len([e for e in events if e.kind == "file.shared"]) == 1
-    assert not [e for e in events if "deleted" in e.kind]  # unmapped types dropped
+    # Only mapped types are stored; "shared" and "deleted" both fall through.
+    assert {e.kind for e in events} == {"file.created", "storage.used"}
     (snap,) = [e for e in events if e.kind == "storage.used"]
     assert snap.value == 5_000_000_000
     assert snap.ts == UNTIL
