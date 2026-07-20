@@ -281,9 +281,21 @@ def test_oldest_container_reports_the_earliest_creation():
         ]
     )
     card = _system_oldest_container(_ctx(store))
-    assert card["value"] == 365  # 2026-01-01 to the 2027-01-01 window end
-    assert card["headline"] == "365 days old"
+    assert card["value"] == 151  # 1 Jan to the 1 Jun sample, not to the window end
+    assert card["headline"] == "151 days old"
     assert "Caddy" in card["sub"] and "1 January 2026" in card["sub"]
+
+
+def test_age_is_measured_to_the_sample_not_the_window_end():
+    """A recap for the current year runs to 31 December — measuring against
+    that would report the age a container is going to reach, not its age."""
+    sampled = datetime(2026, 7, 20, tzinfo=UTC)
+    ten_days_earlier = int(datetime(2026, 7, 10, tzinfo=UTC).timestamp())
+    store = EventStore(":memory:")
+    store.add_events([_gauge("system.container_started", "Portainer", sampled, ten_days_earlier)])
+
+    card = _system_oldest_container(_ctx(store))  # window ends 2027-01-01
+    assert card["value"] == 10, "should be its real age, not 174 days"
 
 
 def test_oldest_container_needs_a_full_day():
