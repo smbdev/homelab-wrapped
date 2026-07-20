@@ -21,7 +21,9 @@ from wrapped.connectors.base import Config, ConfigField, ConnectionResult, FactS
 from wrapped.core.events import Event
 
 _PAGE_SIZE = 200
-_KINDS = {"file_created": "file.created", "shared": "file.shared"}
+# Only types a fact actually consumes. Storing anything else fills the event
+# cache with rows nothing ever reads — add the fact first, then the mapping.
+_KINDS = {"file_created": "file.created"}
 
 
 def _request(url: str, username: str, password: str) -> tuple[int, dict[str, Any] | None]:
@@ -53,7 +55,7 @@ def _folder(path: str) -> str:
 
 
 class NextcloudConnector:
-    """Reads file-created/shared events and a storage snapshot from Nextcloud."""
+    """Reads file-created events and a storage snapshot from Nextcloud."""
 
     id = "nextcloud"
     name = "Nextcloud"
