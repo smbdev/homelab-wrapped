@@ -119,7 +119,7 @@ Your service missing? Export it to CSV and use the generic connector today — o
 
 ## Sharing and redaction
 
-Any card can be saved as a PNG from the end of the story — drawn in your browser, never uploaded. Some cards are **off the record**: they still play in your recap, because it's your data and you should see it, but they can't be exported, they never appear on the summary card, and they're skipped as satellites.
+Any card can be saved as a PNG from the end of the story — drawn in your browser, never uploaded. Some cards are **off the record**: they still play in your recap, because it's your data and you should see it, but they can't be exported, they stay off the summary card, and they never surface as a supporting stat orbiting another card.
 
 You'll see them greyed out in the export list with an *off the record* chip, so you can tell what was held back instead of wondering.
 
