@@ -52,10 +52,17 @@ class PaperlessConnector:
         return ConnectionResult(True, f"OK — {data.get('count', 0):,} documents in the archive")
 
     def collect(self, cfg: Config, since: datetime, until: datetime) -> Iterator[Event]:
-        """Yield one ``doc.added`` event per document archived in the window."""
+        """Yield a ``doc.added`` per document, plus a ``doc.tagged`` per tag on it.
+
+        Tags are a second event rather than a second grouping on ``doc.added``
+        because a document has many tags but only one ``entity_group`` — and
+        folding them in would make a three-tag document count as three
+        documents. Keeping them separate leaves ``docs.total`` exact.
+        """
         base = cfg["url"].rstrip("/")
         token = cfg["api_token"]
         correspondents = self._correspondents(base, token)
+        tags = self._names(base, token, "tags")
         query = urllib.parse.urlencode(
             {
                 "added__date__gt": since.date().isoformat(),
@@ -82,27 +89,50 @@ class PaperlessConnector:
                     entity_group=who,
                     value=1.0,
                 )
+                for tag_id in doc.get("tags") or []:
+                    name = tags.get(tag_id)
+                    if name:
+                        yield Event(
+                            source=self.id,
+                            kind="doc.tagged",
+                            ts=ts,
+                            entity=doc.get("title"),
+                            entity_group=name,
+                            value=1.0,
+                        )
             url = data.get("next")
 
     def facts(self) -> list[FactSpec]:
         return [
             FactSpec("docs.total", "Documents archived"),
             FactSpec("docs.top_senders", "Who sent all that paper"),
+            FactSpec("docs.top_tags", "What all that paper was about"),
         ]
 
+    def _correspondents(self, base: str, token: str) -> dict[int, str]:
+        """id → name for every correspondent; empty on failure."""
+        return self._names(base, token, "correspondents")
+
     @staticmethod
-    def _correspondents(base: str, token: str) -> dict[int, str]:
-        """id → name for every correspondent; tolerated as empty on failure."""
+    def _names(base: str, token: str, endpoint: str) -> dict[int, str]:
+        """id → name for a Paperless lookup list (correspondents, tags…).
+
+        Tolerated as empty on failure: names are garnish, and documents
+        still count without them.
+        """
         out: dict[int, str] = {}
-        url: str | None = f"{base}/api/correspondents/?page_size={_PAGE_SIZE}"
+        url: str | None = f"{base}/api/{endpoint}/?page_size={_PAGE_SIZE}"
         try:
             while url:
                 data = _request(url, token)
                 for c in data.get("results", []):
-                    out[c["id"]] = c["name"]
+                    # Skip anything without both halves rather than raising:
+                    # this is service history the user can't correct.
+                    if c.get("id") is not None and c.get("name"):
+                        out[c["id"]] = c["name"]
                 url = data.get("next")
         except (urllib.error.URLError, json.JSONDecodeError, OSError):
-            return {}  # names are garnish; documents still count
+            return {}
         return out
 
 

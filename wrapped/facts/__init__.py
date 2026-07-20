@@ -163,7 +163,10 @@ def _photos_busiest_day(ctx: FactContext) -> dict[str, Any] | None:
     }
 
 
-_INFRA_KINDS = ("net.", "system.", "dns.")  # samples/aggregates, not human activity
+# Kinds that must not count as "a thing you did on this day": infrastructure
+# samples and aggregates, plus doc.tagged, which shadows a doc.added that's
+# already counted (a three-tag document is one document, not four).
+_INFRA_KINDS = ("net.", "system.", "dns.", "doc.tagged")
 
 
 def _activity_streak(ctx: FactContext) -> dict[str, Any] | None:
@@ -268,6 +271,16 @@ def _docs_top_senders(ctx: FactContext) -> dict[str, Any] | None:
         return None
     return {
         "headline": "Who sent all that paper",
+        "items": [{"label": label, "value": plural(n, "doc")} for label, n, _ in top],
+    }
+
+
+def _docs_top_tags(ctx: FactContext) -> dict[str, Any] | None:
+    top = ctx.store.top(ctx.since, ctx.until, kind="doc.tagged", by="count")
+    if not top:
+        return None
+    return {
+        "headline": "What all that paper was about",
         "items": [{"label": label, "value": plural(n, "doc")} for label, n, _ in top],
     }
 
@@ -420,6 +433,7 @@ FACTS: list[Fact] = [
     Fact("files.top_folders", "top_list", _files_top_folders, rank=60, private=True),
     Fact("docs.total", "big_number", _docs_total, rank=70),
     Fact("docs.top_senders", "top_list", _docs_top_senders, rank=80, private=True),
+    Fact("docs.top_tags", "top_list", _docs_top_tags, rank=85, private=True),
     Fact("storage.growth", "big_number", _storage_growth, rank=90),
     Fact("system.containers", "big_number", _system_containers, rank=100),
     Fact("network.total", "big_number", _network_total, rank=110),
