@@ -253,18 +253,24 @@ def _net_deltas(ctx: FactContext, component: str = "total") -> dict[str, float]:
     return _counter_deltas(ctx, "net.sample", _direction(component))
 
 
-def _latest_per_entity(ctx: FactContext, kind: str) -> dict[str, float]:
-    """Most recent sample per container for a gauge kind (memory, age).
+def _latest_event_per_entity(ctx: FactContext, kind: str) -> dict[str, Any]:
+    """Most recent sample event per container for a gauge kind.
 
     Gauges describe a moment rather than accumulating, so only the newest
     sample in the window is meaningful. Events arrive oldest-first, so the
-    last write per entity wins.
+    last write per entity wins. Returns the whole event, because when a
+    gauge was taken matters as much as what it said.
     """
-    out: dict[str, float] = {}
+    out: dict[str, Any] = {}
     for e in ctx.store.events(ctx.since, ctx.until, kind=kind):
         if e.entity:
-            out[e.entity] = e.value
+            out[e.entity] = e
     return out
+
+
+def _latest_per_entity(ctx: FactContext, kind: str) -> dict[str, float]:
+    """Newest gauge value per container (memory, and friends)."""
+    return {name: e.value for name, e in _latest_event_per_entity(ctx, kind).items()}
 
 
 def _network_total(ctx: FactContext) -> dict[str, Any] | None:
@@ -442,13 +448,17 @@ def _system_oldest_container(ctx: FactContext) -> dict[str, Any] | None:
     Deliberately "old" rather than "uptime": restarting a container leaves
     its creation stamp alone, so this measures how long it has existed, not
     how long the process has been up. Claiming uptime would be wrong.
+
+    Age is measured to the moment the sample was taken, never to the end of
+    the recap window — an in-progress year runs to 31 December, so measuring
+    against it would report the age a container is going to reach.
     """
-    started = _latest_per_entity(ctx, "system.container_started")
+    started = _latest_event_per_entity(ctx, "system.container_started")
     if not started:
         return None
-    name, epoch = min(started.items(), key=lambda kv: kv[1])
-    created = datetime.fromtimestamp(epoch, tz=UTC)
-    days = (ctx.until - created).days
+    name, sample = min(started.items(), key=lambda kv: kv[1].value)
+    created = datetime.fromtimestamp(sample.value, tz=UTC)
+    days = (sample.ts - created).days
     if days < 1:
         return None
     return {
